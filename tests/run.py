@@ -11,7 +11,7 @@ async def newpage(ctx, name):
     p.on("console", lambda m: m.type == "error" and errors.append(f"{name} console: {m.text}"))
     await p.add_init_script(MOCK)
     await p.goto(URL)
-    await p.fill("#name", name)
+    if await p.locator("#name").count(): await p.fill("#name", name)
     return p
 
 async def step(p):
@@ -85,12 +85,12 @@ async def main():
             A = await newpage(ctx, "Conrad"); await A.wait_for_selector("#create:not([disabled])")
             await A.click("#create"); await A.wait_for_selector("#invite")
             link = await A.input_value("#invite"); print("invite", link)
-            frag = link.split("#",1)[1]
+            tail = ("?join=" + link.split("?join=",1)[1]) if "?join=" in link else ("#" + link.split("#",1)[1])
             Bp = await newpage(ctx, "Maya"); Cp = await newpage(ctx, "Jon")
             for P,nm in ((Bp,"Maya"),(Cp,"Jon")):
-                await P.goto(URL + "#" + frag)
-                await P.wait_for_selector("#join:not([disabled])")
-                await P.fill("#name", nm); await P.click("#join")
+                await P.goto(URL + tail)          # opening the link joins automatically
+                await P.wait_for_selector("#myname", timeout=15000)
+                await P.fill("#myname", nm); await P.click("#rename")
             await asyncio.sleep(2.5)
             print("lobby on B:", await Bp.evaluate("S.players.map(p=>p.name)"), "B index", await Bp.evaluate("myIndex()"))
             await A.click("#addbot"); await asyncio.sleep(0.3)

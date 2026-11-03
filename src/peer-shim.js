@@ -3,6 +3,7 @@
 // leaves, the others race to become the new hub and reconnect automatically.
 (function(){
   if (window.claude) return;
+  window.__caboStandalone = true;
   const PRE = 'cabo-with-friends-v1-';
   const rid = n => { let s=''; const a='abcdefghijkmnpqrstuvwxyz23456789'; for(let i=0;i<n;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; };
   // per-tab id (survives a refresh of the same tab, so a player can rejoin their seat)

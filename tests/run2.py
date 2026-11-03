@@ -86,12 +86,14 @@ async def main():
             b = await pw.chromium.launch()
             ctx = await b.new_context(viewport={"width": 1100, "height": 900})
             A = await newpage(ctx, "Conrad"); await A.wait_for_selector("#create:not([disabled])")
-            await A.click("#create"); await A.wait_for_selector(".code")
-            code = await A.inner_text(".code"); print("code", code)
+            await A.click("#create"); await A.wait_for_selector("#invite")
+            link = await A.input_value("#invite"); print("invite", link)
+            frag = link.split("#",1)[1]
             Bp = await newpage(ctx, "Maya"); Cp = await newpage(ctx, "Jon")
-            for P in (Bp, Cp):
+            for P,nm in ((Bp,"Maya"),(Cp,"Jon")):
+                await P.goto(URL + "#" + frag)
                 await P.wait_for_selector("#join:not([disabled])")
-                await P.fill("#code", code); await P.click("#join")
+                await P.fill("#name", nm); await P.click("#join")
             await asyncio.sleep(2.5)
             print("lobby on B:", await Bp.evaluate("S.players.map(p=>p.name)"), "B index", await Bp.evaluate("myIndex()"))
             await A.click("#addbot"); await asyncio.sleep(0.3)

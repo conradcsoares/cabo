@@ -119,6 +119,7 @@ h1{font-family:Fraunces,serif;font-weight:800;letter-spacing:-.02em;margin:0}
 .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
 .note{font-size:13px;color:var(--muted)}
 .err{color:#ffb4a8;font-size:14px;min-height:1em}
+.row #invite{flex:1;font-size:13px;color:var(--muted)}
 .code{font-family:Fraunces,serif;font-size:44px;letter-spacing:.18em;color:var(--gold)}
 .plist{display:grid;gap:6px;margin:10px 0}
 .pitem{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.05)}
@@ -197,6 +198,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600}
 // leaves, the others race to become the new hub and reconnect automatically.
 (function(){
   if (window.claude) return;
+  window.__caboStandalone = true;
   const PRE = 'cabo-with-friends-v1-';
   const rid = n => { let s=''; const a='abcdefghijkmnpqrstuvwxyz23456789'; for(let i=0;i<n;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; };
   // per-tab id (survives a refresh of the same tab, so a player can rejoin their seat)
@@ -665,6 +667,12 @@ function botSnaps(){
 }
 
 /* ================= FLOWS ================= */
+const ARTIFACT_URL='https://claude.ai/artifact/YEkboNqtkhYGMLovqjaWEw';
+function inviteLink(code){ const base=window.__caboStandalone?(location.origin+location.pathname):ARTIFACT_URL; return base+'#join-'+code.toLowerCase(); }
+function hashCode(){ const m=/^#join-([a-z]{4})$/i.exec(location.hash||''); return m?m[1].toUpperCase():null; }
+let inviteCode=hashCode();
+window.addEventListener('hashchange',()=>{ inviteCode=hashCode(); if(view==='landing') render(); });
+function clearHash(){ try{ history.replaceState(null,'',location.pathname+location.search) }catch(e){ try{location.hash=''}catch(_){} } inviteCode=null; }
 function genCode(){const L='ABCDEFGHJKMNPQRSTUVWXYZ';let s='';for(let i=0;i<4;i++)s+=L[rnd(L.length)];return s}
 function saveName(){const el=document.getElementById('name');if(el){myName=el.value.trim().slice(0,18);LS.set('cabo-name',myName)}return myName}
 
@@ -680,8 +688,8 @@ async function createGame(){
 }
 async function joinGame(){
   if(!saveName()){err='Enter your name first';render();return}
-  const code=(document.getElementById('code').value||'').trim().toUpperCase();
-  if(!/^[A-Z]{4}$/.test(code)){err='Game codes are 4 letters';render();return}
+  const code=inviteCode;
+  if(!code){err='Open the invite link your friend sent';render();return}
   if(!room){err='Online play isn’t available here';render();return}
   err='Joining…';render();
   try{ await enterRoom(code) }catch(e){ err='Could not join. ('+(e&&e.code||'error')+')'; render(); return }
@@ -689,7 +697,7 @@ async function joinGame(){
   hello();
   // re-announce until we appear in the player list
   let tries=0; const iv=setInterval(()=>{ tries++; if(S&&myIndex()>=0||tries>6){clearInterval(iv);return} hello() },2000);
-  joinTimer=setTimeout(()=>{ if(!S){err=`No game found with code ${code}. Check the code and that the host has the page open.`;render()} },7000);
+  joinTimer=setTimeout(()=>{ if(!S){err='Couldn’t find that game. Ask the host for a fresh link, and make sure they still have the game open.';render()} },7000);
 }
 function practice(){
   saveName(); offline=true; isHost=true; myPeer='local';
@@ -701,6 +709,7 @@ function practice(){
 function leaveGame(){
   if(gr&&S&&S.phase==='lobby'&&!isHost) gr.emit('act',{t:'leave'}).catch(()=>{});
   if(gr) gr.leave().catch(()=>{});
+  clearHash();
   gr=null;S=null;isHost=false;offline=false;view='landing';err='';clearInterval(beatTimer);clearTimeout(botTimer);seenKeys=new Set();flash={};render();
 }
 
@@ -763,17 +772,28 @@ function render(){
 }
 
 function landingHTML(){
-  return `<div class="landing">
-   <div><div class="fan" aria-hidden="true">
+  const fan=`<div class="fan" aria-hidden="true">
       <div class="card back"></div>
       <div class="card face red"><span class="cr">K<i>♥</i></span><span class="v">K</span></div>
       <div class="card face joker"><span class="cr">JKR</span><span class="v">★</span></div>
       <div class="card face"><span class="cr">A<i>♠</i></span><span class="v">A</span></div>
-    </div><h1>Cabo</h1><p>The memory card game — play with friends online.</p></div>
+    </div>`;
+  if(inviteCode) return `<div class="landing">
+   <div>${fan}<h1>Cabo</h1><p>You’re invited to a game</p></div>
+   <div class="panel" style="display:grid;gap:14px">
+     <div><div class="lbl">Your name</div><input type="text" id="name" maxlength="18" value="${esc(myName)}" placeholder="e.g. Conrad"></div>
+     <button class="gold" id="join" ${claudeReady?'':'disabled'}>Join game</button>
+     <button class="ghost small" id="notnow">Not now</button>
+     <div class="err">${esc(err)}</div>
+     ${claudeReady&&!room?`<div class="note">Couldn’t connect. Refresh and try again.</div>`:''}
+     ${!claudeReady?`<div class="note">Connecting…</div>`:''}
+   </div>
+  </div>`;
+  return `<div class="landing">
+   <div>${fan}<h1>Cabo</h1><p>The memory card game — play with friends online.</p></div>
    <div class="panel" style="display:grid;gap:14px">
      <div><div class="lbl">Your name</div><input type="text" id="name" maxlength="18" value="${esc(myName)}" placeholder="e.g. Conrad"></div>
      <button class="gold" id="create" ${claudeReady?'':'disabled'}>Create a game</button>
-     <div><div class="lbl">Have a code?</div><div class="row"><input type="text" id="code" maxlength="4" placeholder="ABCD" style="text-transform:uppercase;letter-spacing:.2em"><button id="join" ${claudeReady?'':'disabled'}>Join</button></div></div>
      <button class="ghost" id="practice">Practice vs bots</button>
      <div class="err">${esc(err)}</div>
      ${claudeReady&&!room?`<div class="note">Couldn’t load online play — check your internet connection and refresh. Practice mode still works.</div>`:''}
@@ -795,15 +815,18 @@ function rulesHTML(){
 }
 function bindLanding(){
   const $=id=>document.getElementById(id);
-  $('create').onclick=createGame; $('join').onclick=joinGame; $('practice').onclick=practice;
-  $('code').onkeydown=e=>{if(e.key==='Enter')joinGame()};
+  if($('create')) $('create').onclick=createGame;
+  if($('practice')) $('practice').onclick=practice;
+  if($('join')) $('join').onclick=joinGame;
+  if($('notnow')) $('notnow').onclick=()=>{clearHash();err='';render()};
+  if($('name')) $('name').onkeydown=e=>{if(e.key==='Enter'){ if($('join')) joinGame(); }};
 }
 
 function lobbyHTML(){
   const me=myIndex();
   return `${topHTML()}
   <div class="panel" style="max-width:560px;margin:4vh auto 0">
-    ${offline?`<div class="lbl">Practice game</div>`:`<div class="lbl">Game code — share it with friends</div><div class="row"><div class="code">${esc(S.code)}</div><button class="small ghost" id="copy">Copy</button></div>`}
+    ${offline?`<div class="lbl">Practice game</div>`:`<div class="lbl">Invite friends</div><div class="row"><input type="text" id="invite" readonly value="${esc(inviteLink(S.code))}"><button class="gold" id="copy">${navigator.share&&window.__caboStandalone?'Share link':'Copy invite link'}</button></div>`}
     <div class="plist">${S.players.map((p,i)=>`<div class="pitem ${!p.bot&&!offline&&!peersHere.has(p.peer)?'away':''}"><span>${esc(p.name)}${p.peer===S.host&&!offline?'<span class="tag gold">host</span>':''}${p.bot?'<span class="tag">bot</span>':''}${i===me?'<span class="tag">you</span>':''}</span>
       ${(isHost||offline)&&i!==me?`<button class="small ghost" data-kick="${i}">Remove</button>`:''}</div>`).join('')}</div>
     ${isHost||offline?`
@@ -820,7 +843,7 @@ function lobbyHTML(){
 }
 
 function topHTML(){
-  return `<div class="top"><div class="brand"><h1>Cabo</h1><span>${offline?'Practice':'Game '+esc(S.code)}${S.round?` · Game ${S.round}`:''}</span></div>
+  return `<div class="top"><div class="brand"><h1>Cabo</h1><span>${offline?'Practice':'Online'}${S.round?` · Game ${S.round}`:''}</span></div>
    <div class="row"><span class="note">${S.phase!=='lobby'?`Memory mode ${S.opts.memory?'on':'off'}`:''}</span><button class="small ghost" id="leave">Leave</button></div></div>`;
 }
 
@@ -922,7 +945,12 @@ function tableHTML(){
 function bindGame(){
   const $=id=>document.getElementById(id);
   if($('leave')) $('leave').onclick=leaveGame;
-  if($('copy')) $('copy').onclick=()=>{ try{navigator.clipboard.writeText(S.code).then(()=>{$('copy').textContent='Copied'},()=>{})}catch(e){} };
+  if($('invite')) $('invite').onclick=e=>e.target.select();
+  if($('copy')) $('copy').onclick=()=>{ const link=inviteLink(S.code), btn=$('copy');
+    if(navigator.share&&window.__caboStandalone){ navigator.share({title:'Play Cabo with me',url:link}).catch(()=>{}); return; }
+    const done=()=>{btn.textContent='Copied!';setTimeout(()=>{if(btn.isConnected)btn.textContent='Copy invite link'},1800)};
+    const fallback=()=>{ const i=$('invite'); i.focus(); i.select(); try{document.execCommand('copy');done()}catch(e){btn.textContent='Select & copy the link'} };
+    try{ navigator.clipboard.writeText(link).then(done,fallback) }catch(e){ fallback() } };
   if($('mem')) $('mem').onchange=e=>hostDo(()=>{S.opts.memory=e.target.checked});
   if($('addbot')) $('addbot').onclick=()=>hostDo(()=>{const names=['Ana','Leo','Mia','Kai','Zoe','Sam'];const used=new Set(S.players.map(p=>p.name));const nm='Bot '+(names.find(n=>!used.has('Bot '+n))||'X');S.players.push({pid:'bot-'+nm+Date.now(),peer:'bot',name:nm,bot:true})});
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>hostDo(()=>{S.players.splice(+b.dataset.kick,1)}));

@@ -30,9 +30,12 @@ JS = r"""() => {
  set(G,0,[idOf(G,6,'♠'),idOf(G,9,'♠')]); set(G,1,[idOf(G,6,'♥'),idOf(G,0)]); set(G,2,[idOf(G,4,'♠'),idOf(G,5,'♠')]);
  out.snapOwn=[apply(G,2,{t:'snap',target:0,slot:0}), G.players[0].hand[0], G.give];
  out.give=[apply(G,2,{t:'give',slot:1}), G.players[0].hand[0]===idOf(G,5,'♠'), G.players[2].hand[1], G.give];
+ G.matched=false; // each scenario is a fresh discard (one match per discard)
  out.snapSelf=[apply(G,1,{t:'snap',target:1,slot:0}), G.players[1].hand[0]];
  const before=G.players[0].hand.length;
+ G.matched=false; // each scenario is a fresh discard (one match per discard)
  out.wrong=[apply(G,0,{t:'snap',target:2,slot:0}), G.players[0].hand.length-before, knows(G,1,G.players[2].hand[0])];
+ G.matched=false; // each scenario is a fresh discard (one match per discard)
  out.jokerSteal=[apply(G,0,{t:'snap',target:1,slot:1}), G.players[1].hand[1], !!G.give];
  out.takeGone=apply(G,0,{t:'take'});
  out.multiSwap=(()=>{G.give=null;G.pending={src:'deck',id:G.deck.pop(),step:'decide'};return apply(G,0,{t:'exchange',slots:[0,1]})})();

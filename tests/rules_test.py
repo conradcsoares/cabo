@@ -1,5 +1,8 @@
 import asyncio
 from playwright.async_api import async_playwright
+import os, pathlib
+HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
+os.makedirs(os.path.join(HERE, "out"), exist_ok=True)
 JS = r"""() => {
  const out={};
  const mk=()=>{const T=newLobby('x','T');T.players=[{name:'A'},{name:'B'},{name:'C'}];startGame(T);return T};
@@ -37,8 +40,8 @@ JS = r"""() => {
 }"""
 async def main():
     async with async_playwright() as pw:
-        b=await pw.chromium.launch(); p=await b.new_page()
-        await p.goto("file:///home/claude/cabo/index.html")
+        b=await pw.chromium.launch(channel=os.environ.get("PW_CHANNEL")); p=await b.new_page()
+        await p.goto(pathlib.Path(ROOT, "index.html").as_uri())
         r=await p.evaluate(JS)
         for k,v in r.items(): print(k, v)
         await b.close()

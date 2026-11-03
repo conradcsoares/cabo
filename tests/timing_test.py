@@ -1,10 +1,13 @@
 import asyncio, subprocess, sys
 from playwright.async_api import async_playwright
+import os, pathlib
+HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
+os.makedirs(os.path.join(HERE, "out"), exist_ok=True)
 async def main():
-    srv = subprocess.Popen([sys.executable,"-m","http.server","8766","-d","/home/claude/cabo"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    srv = subprocess.Popen([sys.executable,"-m","http.server","8766","-d",ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     await asyncio.sleep(1)
     async with async_playwright() as pw:
-        b=await pw.chromium.launch(); p=await b.new_page()
+        b=await pw.chromium.launch(channel=os.environ.get("PW_CHANNEL")); p=await b.new_page()
         errs=[]; p.on("pageerror",lambda e: errs.append(str(e)))
         await p.goto("http://localhost:8766/index.html")
         await p.fill("#name","Me"); await p.click("#practice"); await p.click("#start"); await asyncio.sleep(0.5)

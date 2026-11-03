@@ -1,5 +1,6 @@
 // Fake PeerJS (same API surface the shim uses) over BroadcastChannel, for offline testing.
 (function(){
+  window.__caboBrokers = window.__caboBrokers || []; // PeerJS-only unless a test also sets up a broker
   const bc = new BroadcastChannel('fakepeer');
   const local = new Map(); // id -> Peer in this tab
   function rid(){ return 'x'+Math.random().toString(36).slice(2,10); }

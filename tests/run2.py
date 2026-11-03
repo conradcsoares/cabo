@@ -1,10 +1,13 @@
 import asyncio, subprocess, sys, random
 from playwright.async_api import async_playwright
+import os, pathlib
+HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
+os.makedirs(os.path.join(HERE, "out"), exist_ok=True)
 
 import os
 STANDALONE = os.environ.get("STANDALONE")
-URL = "http://localhost:8765/" + ("dist/index.html" if STANDALONE else "index.html")
-MOCK = open("/home/claude/test/" + ("fakepeer.js" if STANDALONE else "mock.js")).read()
+URL = "http://localhost:8765/" + ("index.html" if STANDALONE else "index.html")
+MOCK = open(os.path.join(HERE, "fakepeer.js" if STANDALONE else "mock.js")).read()
 errors = []
 
 async def newpage(ctx, name):
@@ -79,11 +82,11 @@ async def play_round(pages, limit=400):
     return await phase(pages[0])
 
 async def main():
-    srv = subprocess.Popen([sys.executable, "-m", "http.server", "8765", "-d", "/home/claude/cabo"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    srv = subprocess.Popen([sys.executable, "-m", "http.server", "8765", "-d", ROOT], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     await asyncio.sleep(1)
     try:
         async with async_playwright() as pw:
-            b = await pw.chromium.launch()
+            b = await pw.chromium.launch(channel=os.environ.get("PW_CHANNEL"))
             ctx = await b.new_context(viewport={"width": 1100, "height": 900})
             A = await newpage(ctx, "Conrad"); await A.wait_for_selector("#create:not([disabled])")
             await A.click("#create"); await A.wait_for_selector("#invite")
@@ -97,20 +100,20 @@ async def main():
             await asyncio.sleep(2.5)
             print("lobby on B:", await Bp.evaluate("S.players.map(p=>p.name)"), "B index", await Bp.evaluate("myIndex()"))
             await A.click("#addbot"); await asyncio.sleep(0.3)
-            await A.screenshot(path="/home/claude/test/lobby.png")
+            await A.screenshot(path=os.path.join(HERE, "out", "lobby.png"))
             await A.click("#start"); await asyncio.sleep(0.8)
-            await asyncio.sleep(0.5); await Bp.click("[data-a=peek]"); await asyncio.sleep(0.3); await Bp.screenshot(path="/home/claude/test/peek.png")
+            await asyncio.sleep(0.5); await Bp.click("[data-a=peek]"); await asyncio.sleep(0.3); await Bp.screenshot(path=os.path.join(HERE, "out", "peek.png"))
             pages = [A, Bp, Cp]
             # play a few steps then screenshot mid-game
             for _ in range(6):
                 for p in pages: await step(p); await asyncio.sleep(0.2)
                 await asyncio.sleep(0.4)
-            await Bp.screenshot(path="/home/claude/test/mid.png", full_page=True)
+            await Bp.screenshot(path=os.path.join(HERE, "out", "mid.png"), full_page=True)
             ph = await play_round(pages); print("round1 ->", ph)
             vers = [await p.evaluate("S.ver") for p in pages]; print("vers", vers)
             same = await A.evaluate("JSON.stringify(S.players.map(p=>p.total))") == await Cp.evaluate("JSON.stringify(S.players.map(p=>p.total))")
             print("totals synced", same, await A.evaluate("S.players.map(p=>p.name+':'+p.total)"))
-            await Cp.screenshot(path="/home/claude/test/results.png", full_page=True)
+            await Cp.screenshot(path=os.path.join(HERE, "out", "results.png"), full_page=True)
             # host leaves -> takeover
             await A.evaluate("window.__mockBye ? window.__mockBye() : window.__killPeers()"); await A.close()
             await asyncio.sleep(6)
@@ -129,7 +132,7 @@ async def main():
                 if ph == "gameEnd": break
                 await D.click("#again")
             print("solo:", ph, await D.evaluate("S.round"), await D.evaluate("S.players.map(p=>p.name+':'+p.total)"))
-            await D.screenshot(path="/home/claude/test/gameend.png", full_page=True)
+            await D.screenshot(path=os.path.join(HERE, "out", "gameend.png"), full_page=True)
             await b.close()
     finally:
         srv.terminate()

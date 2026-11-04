@@ -98,6 +98,11 @@ JS = r"""() => {
     C.players.forEach((p,pi)=>p.hand.forEach(id=>know(C,0,id)));
     const a=botAct(C,0); if(a.t==='ability'&&((a.picks||[]).some(q=>isLocked(C,q[0],q[1]))||(a.target!=null&&isLocked(C,a.target,a.tslot)))) botHits++; }
   out.botLock=botHits;
+  // last game's winner goes first next game (both 'Next game' and 'Play again'); a tie goes to the first tied player after the last starter
+  W=game(4); W.start=0; W.phase='gameEnd'; W.winners=[2]; newRound(W); const ws1=W.start;
+  W.phase='gameEnd'; W.winners=[3]; startGame(W); const ws2=W.start;
+  W.phase='gameEnd'; W.winners=[1,2]; newRound(W);
+  out.winnerFirst=[ws1, ws2, W.start, W.turn];
 
   // the host seats at most 7 people
   S = newLobby('host','ABCD'); isHost = true; myPeer = 'host'; S.players.push({pid:'h', peer:'host', name:'Host'});
@@ -155,6 +160,7 @@ async def main():
     m = r["caboMatch"]
     check("a locked card can still be matched (and the matcher gives a card)", m[0] is None and m[1] is None and m[2], m)
     check("a KING card matched away mid-look: pick two again, nothing given away", r["kingMatched"] == [None, "ability", True, True, True], r["kingMatched"])
+    check("last game's winner goes first", r["winnerFirst"] == [2, 3, 1, 1], r["winnerFirst"])
     check("bots never aim a swap at a locked card", r["botLock"] == 0, r["botLock"])
     print("\nALL PASSED" if not fails else f"\n{len(fails)} FAILED"); sys.exit(1 if fails else 0)
 

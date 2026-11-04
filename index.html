@@ -518,11 +518,18 @@ const isLocked=(S,pi,x)=>S.caboBy!=null&&S.caboBy===pi&&(x===0||x===1);
 const lockMsg=S=>`${pname(S,S.caboBy)} called CABO, so their top two cards are locked and can't be swapped`;
 function knows(S,i,id){return !!(S.up[id]||(S.kn[id]&&S.kn[id].includes(i)))}
 
+// Last game's winner goes first. On a tie, the first tied player after last game's starter goes first.
+function winnerStart(S){
+  const n=S.players.length, w=(S.winners||[]).filter(i=>i<n);
+  if(!w.length) return (S.start+1)%n;
+  return w.sort((a,b)=>(a-S.start-1+2*n)%n-(b-S.start-1+2*n)%n)[0];
+}
 function startGame(S){
-  S.start = S.round ? (S.start+1)%S.players.length : rnd(S.players.length);
+  S.start = S.round ? winnerStart(S) : rnd(S.players.length);
   S.winners=null; newRound(S);
 }
 function newRound(S){
+  if(S.phase==='gameEnd'&&S.winners) S.start=winnerStart(S);
   S.round++;
   const d=deckCards(); S.vals=d.v; S.rk=d.rk; S.su=d.su;
   const ids=shuffle([...Array(S.vals.length).keys()]);
@@ -1056,7 +1063,7 @@ function rulesHTML(){
   <p><b>Matching the top card</b> (anyone, any time): if you think a card matches the rank on top of the discard pile, play it.<br>• Your own card, correct: it's gone, so you have one fewer card.<br>• Another player's card, correct: it's discarded, and you give that player one of your cards.<br>• Wrong: everyone sees the card, it goes back, and you take a penalty card.<br>• <b>Only one match per discarded card.</b> Once someone matches it, anyone who places a card on it after that was too slow and takes a penalty card. Turning on Match mode alone costs nothing.</p>
   <p><b>Jokers are wild:</b> a Joker matches any card, and any card can be matched onto a discarded Joker. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
   <p><b>Calling CABO locks your top two cards</b> (the row opposite your gold peek row): nobody can swap them with a Jack, Queen or King. They can still be looked at and matched, and your other cards can still be swapped or matched.</p>
-  <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
+  <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. The winner goes first next game. When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
   <p><b>Everyone sees every move:</b> each action is announced above the piles, and the cards it touched are labelled on the table (SPIED, SWAPPED, MATCHED…). Only what a player privately looked at stays hidden. Up to 7 players.</p>
   </details>`;
 }

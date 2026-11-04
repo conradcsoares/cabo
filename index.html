@@ -478,7 +478,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600}
 const ABIL = r => r===0?'wild':(r===7||r===8)?'peek':(r===9||r===10)?'spy':(r===11||r===12)?'swap':r===13?'king':null;
 const ABNAME = {peek:'PEEK',spy:'SPY',swap:'SWAP',king:'KING',wild:'WILD'};
 const POWERS=['peek','spy','swap','king'];
-const MAX_PLAYERS=7; // 7 x 4 cards + 1 face-up still leaves 25 to draw
+const MAX_PLAYERS=7; // 7 x 4 cards still leaves 26 to draw
 function rnd(n){ if(window.crypto&&crypto.getRandomValues){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n} return Math.floor(Math.random()*n) }
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
 // Standard 54-card deck (house rules): Joker=-2, A=1, 2-10, J=11, Q=12, red K=-1, black K=13
@@ -528,7 +528,7 @@ function newRound(S){
   const ids=shuffle([...Array(S.vals.length).keys()]);
   S.up={}; S.kn={};
   S.players.forEach(p=>{p.hand=[ids.pop(),ids.pop(),ids.pop(),ids.pop()];p.peeked=false});
-  const top=ids.pop(); S.discard=[top]; S.up[top]=1;
+  S.discard=[]; // the discard pile starts empty
   S.deck=ids; S.phase='peek'; S.pending=null; S.give=null; S.matched=false; S.last=null; S.caboBy=null; S.finalLeft=0; S.tc=0; S.turn=S.start; S.res=null;
   addLog(S,`Game ${S.round} dealt`);
 }
@@ -590,7 +590,7 @@ function apply(S,i,a){
       note(S,i,`${P.name} was too slow — that card was already matched${pc?' · +1 penalty card':''}`,'PENALTY',pc?[pc]:[]);
       return null;
     }
-    if(S.rk[id]===S.rk[topId]||S.rk[id]===0){
+    if(S.rk[id]===S.rk[topId]||S.rk[id]===0||S.rk[topId]===0){ // Jokers are wild both ways
       T.hand[a.slot]=null; S.discard.push(id); S.up[id]=1; S.matched=true;
       if(!own) S.give={from:i,to:a.target,slot:a.slot};
       note(S,i,`${P.name} matched ${whose} ${pos(a.target,a.slot)} card (${AN(CN(S,id))})${own?'!':` — ${P.name} now gives ${T.name} a card`}`,'MATCHED',[[a.target,a.slot]]);
@@ -650,10 +650,13 @@ function apply(S,i,a){
       if(!pd||pd.step!=='ability') return 'Not now';
       if(pd.ab==='peek'){ if(!validSlot(P,a.slot)) return 'Pick one of your cards'; know(S,i,P.hand[a.slot]); note(S,i,`${P.name} used PEEK on their own ${pos(i,a.slot)} card`,'PEEKED',[[i,a.slot]]); }
       else if(pd.ab==='spy'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.slot)) return 'Pick an opponent card'; know(S,i,T.hand[a.slot]); note(S,i,`${P.name} used SPY on ${T.name}'s ${pos(a.target,a.slot)} card`,'SPIED',[[a.target,a.slot]]); }
-      else if(pd.ab==='swap'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.tslot)||!validSlot(P,a.slot)) return 'Pick your card and an opponent card';
-        if(isLocked(S,a.target,a.tslot)||isLocked(S,i,a.slot)) return lockMsg(S);
-        const t=P.hand[a.slot]; P.hand[a.slot]=T.hand[a.tslot]; T.hand[a.tslot]=t; forget(S,[P.hand[a.slot],t],null);
-        note(S,i,`${P.name} used SWAP: their ${pos(i,a.slot)} card for ${T.name}'s ${pos(a.target,a.tslot)} card`,'SWAPPED',[[i,a.slot],[a.target,a.tslot]]); }
+      else if(pd.ab==='swap'){ // any two cards on the table, blind
+        const ps=a.picks, d=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[0],q[1])} card`;
+        if(!Array.isArray(ps)||ps.length!==2||!ps.every(q=>Array.isArray(q)&&S.players[q[0]]&&validSlot(S.players[q[0]],q[1]))||(ps[0][0]===ps[1][0]&&ps[0][1]===ps[1][1])) return 'Pick two different cards';
+        if(ps.some(q=>isLocked(S,q[0],q[1]))) return lockMsg(S);
+        const A=S.players[ps[0][0]], B=S.players[ps[1][0]], t=A.hand[ps[0][1]]; A.hand[ps[0][1]]=B.hand[ps[1][1]]; B.hand[ps[1][1]]=t;
+        forget(S,[A.hand[ps[0][1]],t],null);
+        note(S,i,`${P.name} used SWAP on ${d(ps[0])} and ${d(ps[1])}`,'SWAPPED',ps); }
       else if(pd.ab==='king'){
         const ps=a.picks, desc=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[0],q[1])} card`;
         if(!Array.isArray(ps)||ps.length!==2||!ps.every(q=>Array.isArray(q)&&S.players[q[0]]&&validSlot(S.players[q[0]],q[1]))||(ps[0][0]===ps[1][0]&&ps[0][1]===ps[1][1])) return 'Pick two different cards';
@@ -707,7 +710,7 @@ function botAct(S,i){
     if(pd.ab==='spy'){const c=opps.filter(o=>!knows(S,i,o.id)); if(!c.length) return {t:'skip'}; const o=c[rnd(c.length)]; return {t:'ability',target:o.ti,slot:o.x}}
     if(pd.ab==='swap'){
       const good=opps.filter(o=>knows(S,i,o.id)&&S.vals[o.id]<=3&&!isLocked(S,o.ti,o.x)).sort((a,b)=>S.vals[a.id]-S.vals[b.id])[0];
-      if(good&&hv>=S.vals[good.id]+4) return {t:'ability',slot:hi,target:good.ti,tslot:good.x};
+      if(good&&hv>=S.vals[good.id]+4) return {t:'ability',picks:[[i,hi],[good.ti,good.x]]};
       return {t:'skip'};
     }
   }
@@ -869,7 +872,7 @@ function botSnaps(){
       if(best!=null&&!apply(S,b,{t:'give',slot:best})) broadcast(); return; }
     const topId=S.discard[S.discard.length-1]; if(topId==null) return;
     for(let b=0;b<S.players.length;b++){ const P=S.players[b]; if(!P.bot) continue;
-      const own=P.hand.findIndex(id=>id!=null&&S.rk[id]!==0&&S.rk[id]===S.rk[topId]&&knows(S,b,id)&&S.vals[id]>0);
+      const own=P.hand.findIndex(id=>id!=null&&S.rk[id]!==0&&(S.rk[id]===S.rk[topId]||S.rk[topId]===0)&&knows(S,b,id)&&S.vals[id]>0);
       if(own>=0){ if(!apply(S,b,{t:'snap',target:b,slot:own})) broadcast(); return; }
       for(let t=0;t<S.players.length;t++){ if(t===b) continue; const x=S.players[t].hand.findIndex(id=>id!=null&&S.rk[id]===0&&knows(S,b,id));
         if(x>=0&&P.hand.some(id=>id!=null)){ if(!apply(S,b,{t:'snap',target:t,slot:x})) broadcast(); return; } }
@@ -1045,10 +1048,10 @@ function rulesHTML(){
   <p><b>Goal:</b> have the fewest points when the game ends. Uses a regular 54-card deck: <b>Joker = −2, red King = −1, Ace = 1, 2–10 = face value, Jack = 11, Queen = 12, black King = 13</b>.</p>
   <p>Everyone gets 4 face-down cards in a 2×2 square and peeks at their <b>bottom two</b> at the start. After that, you only see your cards again by using powers.</p>
   <p><b>On your turn</b>, do one of these:<br>• <b>Draw from the deck</b>, then either discard it (using its power, if it has one) or swap it with one of your cards. A card you swap out doesn't use its power.<br>• <b>Call CABO.</b> That's your whole turn. Everyone else gets one more turn, then all cards are revealed.</p>
-  <p><b>Powers</b> (when you discard the card you drew): 7–8 <b>PEEK</b> at one of your cards · 9–10 <b>SPY</b> on an opponent's card · Jack/Queen <b>SWAP</b> one of your cards with an opponent's card, blind: everyone sees which two cards moved, but nobody, not even you, learns what they are · King <b>KING</b>: look at any two cards on the table, then swap them or leave them. Only you see them; if you swap, nobody else learns what moved, even a card they had memorized.</p>
+  <p><b>Powers</b> (when you discard the card you drew): 7–8 <b>PEEK</b> at one of your cards · 9–10 <b>SPY</b> on an opponent's card · Jack/Queen <b>SWAP</b> any two cards on the table (yours or anyone's), blind: everyone sees which two cards moved, but nobody, not even you, learns what they are · King <b>KING</b>: look at any two cards on the table, then swap them or leave them. Only you see them; if you swap, nobody else learns what moved, even a card they had memorized.</p>
   <p><b>The table</b> is laid out like sitting together: your cards as you hold them, everyone else's turned to face their owner. Each hand's <b>gold row</b> is its peek row, the two cards its owner looked at at the start: nearest you for your own hand, furthest from you for opponents. Cards never move around: a matched card leaves a gap, and a spot only changes when a card is swapped or added.</p>
   <p><b>Matching the top card</b> (anyone, any time): if you think a card matches the rank on top of the discard pile, play it.<br>• Your own card, correct: it's gone, so you have one fewer card.<br>• Another player's card, correct: it's discarded, and you give that player one of your cards.<br>• Wrong: everyone sees the card, it goes back, and you take a penalty card.<br>• <b>Only one match per discarded card.</b> Once someone matches it, anyone who places a card on it after that was too slow and takes a penalty card. Turning on Match mode alone costs nothing.</p>
-  <p><b>Jokers are wild:</b> a Joker matches any card. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
+  <p><b>Jokers are wild:</b> a Joker matches any card, and any card can be matched onto a discarded Joker. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
   <p><b>Calling CABO locks your top two cards</b> (the row opposite your gold peek row): nobody can swap them with a Jack, Queen or King. They can still be looked at and matched, and your other cards can still be swapped or matched.</p>
   <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
   <p><b>Everyone sees every move:</b> each action is announced above the piles, and the cards it touched are labelled on the table (SPIED, SWAPPED, MATCHED…). Only what a player privately looked at stays hidden. Up to 7 players.</p>
@@ -1090,7 +1093,7 @@ function lobbyHTML(){
 
 function topHTML(){
   return `<div class="top"><div class="brand"><h1>Cabo</h1><span>${offline?'Practice':'Online'}${S.round?` · Game ${S.round}`:''}</span></div>
-   <div class="row"><span class="note">${S.phase!=='lobby'?`Memory mode ${S.opts.memory?'on':'off'}`:''}</span>${!offline&&S.phase!=='lobby'?`<button class="small ghost" id="invbtn">Invite</button>`:''}<button class="small ghost" id="leave">Leave</button></div></div>`;
+   <div class="row">${S.phase==='lobby'?'':(isHost||offline)?`<button class="small ghost" id="memt" title="Memory mode: seen cards hide again">Memory: ${S.opts.memory?'on':'off'}</button>`:`<span class="note">Memory mode ${S.opts.memory?'on':'off'}</span>`}${!offline&&S.phase!=='lobby'?`<button class="small ghost" id="invbtn">Invite</button>`:''}<button class="small ghost" id="leave">Leave</button></div></div>`;
 }
 
 function statusText(me){
@@ -1109,7 +1112,7 @@ function statusText(me){
   if(pd.step==='decide') return 'Discard or swap'+cabo;
   if(pd.ab==='peek') return 'Tap your card';
   if(pd.ab==='spy') return 'Tap their card';
-  if(pd.ab==='swap') return swapOwn==null?'Tap your card':'Tap their card';
+  if(pd.ab==='swap') return `Pick any 2 cards to swap · ${kingSel.length}/2`;
   return '';
 }
 
@@ -1131,7 +1134,7 @@ function tableHTML(){
   const ended=S.phase==='gameEnd';
   const giving=me>=0&&S.give&&S.give.from===me;
   const snapping=snapMode&&me>=0&&S.phase==='turn'&&!S.give;
-  const oppTarget=snapping||(!giving&&myTurn&&pd&&pd.step==='ability'&&(pd.ab==='spy'||pd.ab==='king'||(pd.ab==='swap'&&swapOwn!=null)));
+  const oppTarget=snapping||(!giving&&myTurn&&pd&&pd.step==='ability'&&(pd.ab==='spy'||pd.ab==='king'||pd.ab==='swap'));
   const kSel=(pi,x)=>kingSel.some(q=>q[0]===pi&&q[1]===x);
   // the last action's cards, labelled for everyone (key changes per action, so the pulse replays)
   const L=S.phase==='turn'?S.last:null, hit=(pi,x)=>L&&L.tag&&L.cards.some(q=>q[0]===pi&&q[1]===x);
@@ -1152,7 +1155,7 @@ function tableHTML(){
     drawn=`<div class="drawn">${cardHTML(show?pd.id:null,{cls:fx('drawn',pd.id+'|'+show)||(fxPrev&&!('drawn' in fxPrev)?' anim-in':'')})}<span>${mine?(pd.step==='ability'?ABNAME[pd.ab]:'Your card'):esc(pname(S,S.turn))+(pd.src==='discard'?' took':pd.src==='steal'?' stole':' drew')}</span></div>`;
   }
   const P=me>=0?S.players[me]:null;
-  const selectable = me>=0 && (giving || snapping ||  (myTurn&&pd&&(pd.step==='decide'||(pd.step==='ability'&&(pd.ab==='peek'||pd.ab==='king'||pd.ab==='swap')&&!(pd.ab==='swap'&&swapOwn!=null)))));
+  const selectable = me>=0 && (giving || snapping ||  (myTurn&&pd&&(pd.step==='decide'||(pd.step==='ability'&&(pd.ab==='peek'||pd.ab==='king'||pd.ab==='swap')))));
   let actions='';
   if(S.phase==='peek'&&P&&!P.peeked) actions=`<button class="gold" data-a="peek">Peek</button>`;
   if(myTurn&&!pd) actions=caboAsking()&&S.caboBy==null
@@ -1163,7 +1166,7 @@ function tableHTML(){
     actions=`<button class="gold" data-a="exchange" ${sel.size===1?'':'disabled'}>Swap</button>`+
       (pd.src==='deck'?(ab?`<button data-a="use">${ab==='wild'?'Play Joker':'Use '+ABNAME[ab]}</button><button class="ghost" data-a="discard">Discard</button>`:`<button data-a="discard">Discard</button>`):'');
   }
-  if(myTurn&&pd&&pd.step==='ability') actions=(pd.ab==='king'?`<button class="gold" data-a="kinglook" ${kingSel.length===2?'':'disabled'}>Look ${kingSel.length}/2</button>`:'')+`<button class="ghost" data-a="skip">Skip ${ABNAME[pd.ab]}</button>`+(swapOwn!=null?`<button class="ghost" data-a="unswap">Change my card</button>`:'');
+  if(myTurn&&pd&&pd.step==='ability') actions=(pd.ab==='king'?`<button class="gold" data-a="kinglook" ${kingSel.length===2?'':'disabled'}>Look ${kingSel.length}/2</button>`:pd.ab==='swap'?`<button class="gold" data-a="kinglook" ${kingSel.length===2?'':'disabled'}>Swap ${kingSel.length}/2</button>`:'')+`<button class="ghost" data-a="skip">Skip ${ABNAME[pd.ab]}</button>`;
   if(myTurn&&pd&&pd.step==='choose') actions=POWERS.map(k=>`<button data-a="as-${k}">${ABNAME[k]}</button>`).join('')+`<button class="ghost" data-a="skip">None</button>`;
   if(myTurn&&pd&&pd.step==='king2') actions=`<button class="gold" data-a="kswap" ${pd.picks.some(q=>isLocked(S,q[0],q[1]))?'disabled title="A locked card can\'t be swapped"':''}>Swap</button><button class="ghost" data-a="kleave">Leave</button>`;
   if(giving) actions='';
@@ -1227,6 +1230,7 @@ function bindGame(){
     const fallback=()=>{ const i=$('invite'); i.focus(); i.select(); try{document.execCommand('copy');done()}catch(e){btn.textContent='Select & copy the link'} };
     try{ navigator.clipboard.writeText(link).then(done,fallback) }catch(e){ fallback() } };
   if($('mem')) $('mem').onchange=e=>hostDo(()=>{S.opts.memory=e.target.checked});
+  if($('memt')) $('memt').onclick=()=>hostDo(()=>{S.opts.memory=!S.opts.memory; addLog(S,`Memory mode turned ${S.opts.memory?'on':'off'}`)});
   if($('addbot')) $('addbot').onclick=()=>hostDo(()=>{const names=['Ana','Leo','Mia','Kai','Zoe','Sam'];const used=new Set(S.players.map(p=>p.name));const nm='Bot '+(names.find(n=>!used.has('Bot '+n))||'X');S.players.push({pid:'bot-'+nm+Date.now(),peer:'bot',name:nm,bot:true})});
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>hostDo(()=>{S.players.splice(+b.dataset.kick,1)}));
   document.querySelectorAll('[data-botify]').forEach(b=>b.onclick=()=>hostDo(()=>{const p=S.players[+b.dataset.botify];p.bot=true;p.wasHuman=true;addLog(S,`A bot is playing for ${p.name}`)}));
@@ -1241,17 +1245,15 @@ function bindGame(){
     if(snapMode){ act({t:'snap',target:me,slot:x}); return }
     if(pd&&pd.step==='decide'){ const had=sel.has(x); sel.clear(); if(!had) sel.add(x); render(); return }
     if(pd&&pd.step==='ability'&&pd.ab==='peek'){ act({t:'ability',slot:x}); return }
-    if(pd&&pd.step==='ability'&&pd.ab==='swap'){ swapOwn=x; render(); return }
-    if(pd&&pd.step==='ability'&&pd.ab==='king'){ toggleKing(me,x); return }
+    if(pd&&pd.step==='ability'&&(pd.ab==='king'||pd.ab==='swap')){ toggleKing(me,x); return }
   });
   document.querySelectorAll('[data-opp]').forEach(el=>el.onclick=()=>{
     if(!el.classList.contains('click')) return;
     const ti=+el.dataset.opp, x=+el.dataset.slot, pd=S.pending;
     if(snapMode){ act({t:'snap',target:ti,slot:x}); return }
     if(!pd) return;
-    if(pd.ab==='king') toggleKing(ti,x);
+    if(pd.ab==='king'||pd.ab==='swap') toggleKing(ti,x);
     else if(pd.ab==='spy') act({t:'ability',target:ti,slot:x});
-    else if(pd.ab==='swap'&&swapOwn!=null) act({t:'ability',slot:swapOwn,target:ti,tslot:x});
   });
   document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a;

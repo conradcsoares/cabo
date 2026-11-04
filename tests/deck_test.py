@@ -52,7 +52,8 @@ JS = r"""() => {
   const withPower=(ab,a)=>{ const T=game(3); T.turn=0; T.pending={src:'deck',id:T.deck.pop(),step:'ability',ab}; const e=apply(T,0,a); return [e,T.last.tag,describe(T.last.text,0),JSON.stringify(T.last.cards)]; }; // as P0 sees the table
   acts.spy=withPower('spy',{t:'ability',target:2,slot:1});
   acts.peek=withPower('peek',{t:'ability',slot:2});
-  acts.swap=withPower('swap',{t:'ability',slot:0,target:1,tslot:3});
+  acts.swap=withPower('swap',{t:'ability',picks:[[0,0],[1,3]]});
+  acts.swapOthers=withPower('swap',{t:'ability',picks:[[1,0],[2,3]]});
   acts.king=withPower('king',{t:'ability',picks:[[0,1],[2,0]]});
   out.acts=acts;
 
@@ -60,7 +61,7 @@ JS = r"""() => {
   const allKnow=(T,ids)=>ids.forEach(id=>T.players.forEach((_,k)=>know(T,k,id)));
   const who=(T,id)=>T.players.map((_,k)=>knows(T,k,id)?k:null).filter(k=>k!=null);
   let W=game(3); W.turn=0; let mine=W.players[0].hand[0], theirs=W.players[1].hand[3]; allKnow(W,[mine,theirs]);
-  W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'swap'}; apply(W,0,{t:'ability',slot:0,target:1,tslot:3});
+  W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'swap'}; apply(W,0,{t:'ability',picks:[[0,0],[1,3]]});
   out.blindSwap=[W.players[0].hand[0]===theirs, W.players[1].hand[3]===mine, who(W,mine), who(W,theirs), W.last.tag];
   W=game(3); W.turn=0; mine=W.players[0].hand[1]; theirs=W.players[2].hand[0]; allKnow(W,[mine,theirs]);
   W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'king'}; apply(W,0,{t:'ability',picks:[[0,1],[2,0]]}); apply(W,0,{t:'kingswap',swap:true});
@@ -74,16 +75,16 @@ JS = r"""() => {
   let C=caboGame(); const callNote=[C.last.tag, JSON.stringify(C.last.cards)];
   const before0=C.players[1].hand.slice();
   C.pending={src:'deck',id:C.deck.pop(),step:'ability',ab:'swap'};
-  const lockedSwap=apply(C,0,{t:'ability',slot:0,target:1,tslot:0});
+  const lockedSwap=apply(C,0,{t:'ability',picks:[[0,0],[1,0]]});
   const unchanged=JSON.stringify(C.players[1].hand)===JSON.stringify(before0);
-  const openSwap=apply(C,0,{t:'ability',slot:0,target:1,tslot:2});
+  const openSwap=apply(C,0,{t:'ability',picks:[[0,0],[1,2]]});
   out.caboSwap=[callNote, lockedSwap, unchanged, openSwap, C.players[1].hand[2]!==before0[2]];
   C=caboGame(); C.pending={src:'deck',id:C.deck.pop(),step:'ability',ab:'king'};
   const look=apply(C,0,{t:'ability',picks:[[0,0],[1,1]]}); const sees=knows(C,0,C.players[1].hand[1]);
   const kswap=apply(C,0,{t:'kingswap',swap:true}); const stillKing2=C.pending&&C.pending.step;
   const kleave=apply(C,0,{t:'kingswap',swap:false});
   out.caboKing=[look, sees, kswap, stillKing2, kleave];
-  C=caboGame(); const ctop=C.discard[C.discard.length-1]; C.players[1].hand[0]=C.vals.findIndex((v,id)=>id!==ctop&&C.rk[id]===C.rk[ctop]&&!C.players.some(p=>p.hand.includes(id)));
+  C=caboGame(); C.discard.push(C.deck.pop()); const ctop=C.discard[C.discard.length-1]; C.players[1].hand[0]=C.vals.findIndex((v,id)=>id!==ctop&&C.rk[id]===C.rk[ctop]&&!C.players.some(p=>p.hand.includes(id)));
   C.matched=false; const m=apply(C,2,{t:'snap',target:1,slot:0});
   out.caboMatch=[m, C.players[1].hand[0], !!C.give];
   // bots never aim a swap at a locked spot
@@ -97,6 +98,10 @@ JS = r"""() => {
   S = newLobby('host','ABCD'); isHost = true; myPeer = 'host'; S.players.push({pid:'h', peer:'host', name:'Host'});
   for (let k=1;k<=9;k++) onRemoteAct({data:{t:'join', name:'P'+k}, peer:'p'+k, by:'u'+k});
   out.seated = S.players.length;
+  // anything can be matched onto a discarded Joker
+  G = game(3); const jk=G.vals.findIndex((v,id)=>G.rk[id]===0); G.discard.push(jk); G.up[jk]=1; G.matched=false;
+  const any=G.players[1].hand[2]; const jm=apply(G,1,{t:'snap',target:1,slot:2});
+  out.jokerTop=[jm, G.players[1].hand[2], G.discard[G.discard.length-1]===any];
   // positions as each seat sees them: your own hand as held, an opponent's turned 180 degrees
   out.views = [0,1,2,3].map(x=>[viewPos(0,x,0), viewPos(1,x,0)]);
   return out;
@@ -111,7 +116,7 @@ async def main():
         b = await pw.chromium.launch(channel=os.environ.get("PW_CHANNEL"))
         p = await b.new_page(); await p.goto(pathlib.Path(ROOT, "index.html").as_uri())
         r = await p.evaluate(JS); await b.close()
-    check("7 players are dealt 4 each, 25 left to draw", r["sevenDeal"] == [True, 25, 1], r["sevenDeal"])
+    check("7 players are dealt 4 each, 26 left, discard pile starts empty", r["sevenDeal"] == [True, 26, 0], r["sevenDeal"])
     check("7-player state fits a 3900-byte message", r["sevenStateBytes"] < 3900, r["sevenStateBytes"])
     check("an empty deck is not reshuffled at the end of a turn", r["endTurnNoShuffle"][:3] == [0, True, True] and r["endTurnNoShuffle"][3] == "turn", r["endTurnNoShuffle"])
     d = r["drawShuffles"]
@@ -126,7 +131,7 @@ async def main():
     a = r["acts"]
     check("SPY is shown: who, whose card, which one (opponent hands are turned around)", a["spy"][1] == "SPIED" and "used SPY on P2's bottom-left card" in a["spy"][2] and a["spy"][3] == "[[2,1]]", a["spy"])
     check("PEEK is shown with the card position", a["peek"][1] == "PEEKED" and "bottom-left" in a["peek"][2] and a["peek"][3] == "[[0,2]]", a["peek"])
-    check("SWAP is shown with both cards", a["swap"][1] == "SWAPPED" and "their top-left card for P1's top-left" in a["swap"][2] and a["swap"][3] == "[[0,0],[1,3]]", a["swap"])
+    check("SWAP is shown with both cards", a["swap"][1] == "SWAPPED" and "used SWAP on their own top-left card and P1's top-left card" in a["swap"][2] and a["swap"][3] == "[[0,0],[1,3]]", a["swap"])
     check("KING look is shown with both cards", a["king"][1] == "LOOKED" and "their own top-right card and P2's bottom-right" in a["king"][2] and a["king"][3] == "[[0,1],[2,0]]", a["king"])
     check("own hand as held, opponents' turned around (their peek row furthest away)",
           r["views"] == [["top-left","bottom-right"],["top-right","bottom-left"],["bottom-left","top-right"],["bottom-right","top-left"]], r["views"])
@@ -138,6 +143,8 @@ async def main():
     c = r["caboSwap"]
     check("calling CABO announces and labels the locked top two", c[0] == ["LOCKED", "[[1,0],[1,1]]"], c[0])
     check("SWAP can't take a CABO caller's top two; their other cards still swap", isinstance(c[1], str) and "locked" in c[1] and c[2] and c[3] is None and c[4], c)
+    check("SWAP can trade two opponents' cards", a["swapOthers"][0] is None and a["swapOthers"][3] == "[[1,0],[2,3]]", a["swapOthers"])
+    check("any card can be matched onto a discarded Joker", r["jokerTop"][0] is None and r["jokerTop"][1] is None and r["jokerTop"][2], r["jokerTop"])
     k = r["caboKing"]
     check("KING may look at a locked card but not swap it", k[0] is None and k[1] and isinstance(k[2], str) and k[3] == "king2" and k[4] is None, k)
     m = r["caboMatch"]

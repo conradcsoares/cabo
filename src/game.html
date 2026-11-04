@@ -359,6 +359,8 @@ function apply(S,i,a){
       if(!own) S.give={from:i,to:a.target,slot:a.slot};
       note(S,i,`${P.name} matched ${whose} ${pos(a.target,a.slot)} card (${AN(CN(S,id))})${own?'!':` — ${P.name} now gives ${T.name} a card`}`,'MATCHED',[[a.target,a.slot]]);
       if(!P.hand.some(x=>x!=null)&&S.give&&S.give.from===i) S.give=null;
+      const pd=S.pending; // a KING card that was looked at is gone: the KING player picks two cards again
+      if(pd&&pd.step==='king2'&&pd.picks.some(q=>q[0]===a.target&&q[1]===a.slot)){ const {picks,...rest}=pd; S.pending={...rest,step:'ability'}; addLog(S,`${pname(S,S.turn)} picks two cards again — one they chose was matched away`); }
     } else {
       S.players.forEach((_,k)=>know(S,k,id));
       const pc=penalty();
@@ -405,6 +407,7 @@ function apply(S,i,a){
       if(!pd||pd.step!=='king2') return 'Not now';
       const [q1,q2]=pd.picks, A=S.players[q1[0]], B=S.players[q2[0]];
       const d=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[0],q[1])} card`;
+      if(!pd.picks.every(q=>validSlot(S.players[q[0]],q[1]))) return 'Pick two cards again';
       if(a.swap&&pd.picks.some(q=>isLocked(S,q[0],q[1]))) return lockMsg(S);
       if(a.swap){ const t=A.hand[q1[1]]; A.hand[q1[1]]=B.hand[q2[1]]; B.hand[q2[1]]=t; forget(S,[A.hand[q1[1]],t],i); note(S,i,`${P.name} used KING to swap ${d(q1)} with ${d(q2)}`,'SWAPPED',pd.picks); }
       else note(S,i,`${P.name} looked and left both cards where they were`,'LOOKED',pd.picks);
@@ -1045,7 +1048,8 @@ setInterval(()=>{ if(view==='game'&&S&&S.opts&&S.opts.memory){const now=Date.now
 let lastKey='';
 const _render=render;
 let lastTop=null;
-render=function(){ if(S&&S.phase!=='turn') snapMode=false; if(S){const k=S.phase+'|'+S.turn+'|'+(S.pending?S.pending.step+S.pending.id:'')+'|'+S.round; if(k!==lastKey){ if(!(S.phase==='peek'&&lastKey.startsWith('peek'))){sel.clear();swapOwn=null;kingSel=[]} lastKey=k } } _render() };
+render=function(){ if(S&&S.phase!=='turn') snapMode=false;
+  if(S&&kingSel.some(q=>!S.players[q[0]]||S.players[q[0]].hand[q[1]]==null)) kingSel=[]; /* a picked card was matched away: pick two again */ if(S){const k=S.phase+'|'+S.turn+'|'+(S.pending?S.pending.step+S.pending.id:'')+'|'+S.round; if(k!==lastKey){ if(!(S.phase==='peek'&&lastKey.startsWith('peek'))){sel.clear();swapOwn=null;kingSel=[]} lastKey=k } } _render() };
 
 render();
 initClaude();

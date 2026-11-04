@@ -25,6 +25,8 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
   - Meaning: the host can switch memory mode during or between games, not only before the first one.
 - **2026-11-03** — "make it so that uc an match anything on top of a discarded joker"
 - **2026-11-03** — "make it so there is not a discarded card by default"
+- **2026-11-04** — "if you try to swap a joker but the opponent matches the joker while u have that card selected u are able to choose two new cards to swap, (this is for jacks, queens, kings) what happened before is if i use a king and i look at someone elses joker and they match it during this the user of the king would be able to give the opponent one of their cards at no cost"
+  - Meaning: if a card picked for a Jack/Queen/King swap is matched away mid-power, the selection resets and the player picks two cards again; a swap can never move a card into an empty spot.
 
 ## How to work
 

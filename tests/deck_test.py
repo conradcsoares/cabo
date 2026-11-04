@@ -69,6 +69,11 @@ JS = r"""() => {
   W=game(3); W.turn=0; mine=W.players[0].hand[1]; theirs=W.players[2].hand[0]; allKnow(W,[mine,theirs]);
   W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'king'}; apply(W,0,{t:'ability',picks:[[0,1],[2,0]]}); apply(W,0,{t:'kingswap',swap:false});
   out.kingLeave=[who(W,mine), who(W,theirs)];
+  // the KING player looked at an opponent card that gets matched away: no free give, pick two again
+  W=game(3); W.turn=0; W.matched=false; const kt=W.players[2].hand[0]; W.discard.push(W.deck.find(id=>W.rk[id]===W.rk[kt]&&id!==kt)??kt); W.up[W.discard.at(-1)]=1;
+  W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'king'}; apply(W,0,{t:'ability',picks:[[0,1],[2,0]]});
+  const hand0=W.players[0].hand.filter(x=>x!=null).length, km=apply(W,2,{t:'snap',target:2,slot:0});
+  out.kingMatched=[km, W.pending.step, W.pending.picks===undefined, apply(W,0,{t:'kingswap',swap:true})!==null, W.players[0].hand.filter(x=>x!=null).length===hand0];
 
   // CABO locks the caller's top two spots against swaps (not against looking or matching)
   const caboGame=()=>{ const T=game(3); T.turn=1; apply(T,1,{t:'cabo'}); T.turn=0; return T; };
@@ -149,6 +154,7 @@ async def main():
     check("KING may look at a locked card but not swap it", k[0] is None and k[1] and isinstance(k[2], str) and k[3] == "king2" and k[4] is None, k)
     m = r["caboMatch"]
     check("a locked card can still be matched (and the matcher gives a card)", m[0] is None and m[1] is None and m[2], m)
+    check("a KING card matched away mid-look: pick two again, nothing given away", r["kingMatched"] == [None, "ability", True, True, True], r["kingMatched"])
     check("bots never aim a swap at a locked card", r["botLock"] == 0, r["botLock"])
     print("\nALL PASSED" if not fails else f"\n{len(fails)} FAILED"); sys.exit(1 if fails else 0)
 

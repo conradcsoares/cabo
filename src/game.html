@@ -126,6 +126,12 @@ h1{font-family:Fraunces,serif;font-weight:800;letter-spacing:-.02em;margin:0}
 input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
 .tag{font-size:11px;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.12);color:var(--muted);margin-left:6px}
 .tag.gold{background:var(--gold);color:#2b1d00}
+.scorebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 12px;font-size:12px;color:var(--muted)}
+.scorebar .sblabel{text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;margin-right:2px}
+.scorebar .sb{display:inline-flex;align-items:center;gap:6px;padding:3px 4px 3px 10px;border-radius:99px;background:rgba(255,255,255,.08);max-width:150px}
+.scorebar .sb b{min-width:20px;text-align:center;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-variant-numeric:tabular-nums}
+.scorebar .sn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scorebar .sb.lead b{background:var(--gold);color:#2b1d00}
 /* table */
 .opps{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .seat{padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.18);min-width:150px}
@@ -331,6 +337,7 @@ function endRound(S){
   if(w.length>1&&w.includes(S.caboBy)){ w=[S.caboBy]; S.tb='Tie on points and cards — CABO caller wins' }
   if(w.length>1) S.tb='Tied on points and cards — it’s a tie';
   S.winners=w;
+  if(w.length===1) S.players[w[0]].wins=(S.players[w[0]].wins||0)+1; // session tally; a tie counts for nobody
   S.res=S.players.map((p,i)=>({sum:sums[i],cards:cnt[i],note:S.caboBy===i?'Called CABO':''}));
   S.pending=null; S.give=null; S.phase='gameEnd';
   addLog(S,`Game over — ${w.length>1?'tie between '+w.map(i=>pname(S,i)).join(' & '):pname(S,w[0])+' wins'} with ${min} point${Math.abs(min)===1?'':'s'}`);
@@ -827,7 +834,7 @@ function rulesHTML(){
   <p><b>Matching the top card</b> (anyone, any time): if you think a card matches the rank on top of the discard pile, play it.<br>• Your own card, correct: it's gone, so you have one fewer card.<br>• Another player's card, correct: it's discarded, and you give that player one of your cards.<br>• Wrong: everyone sees the card, it goes back, and you take a penalty card.<br>• <b>Only one match per discarded card.</b> Once someone matches it, anyone who places a card on it after that was too slow and takes a penalty card. Turning on Match mode alone costs nothing.</p>
   <p><b>Jokers are wild:</b> a Joker matches any card, and any card can be matched onto a discarded Joker. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
   <p><b>Calling CABO locks your top two cards</b> (the row opposite your gold peek row): nobody can swap them with a Jack, Queen or King. They can still be looked at and matched, and your other cards can still be swapped or matched.</p>
-  <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. The winner goes first next game. When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
+  <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. The winner goes first next game, and the Games won bar counts each player's wins in this lobby (a tie counts for nobody). When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
   <p><b>Everyone sees every move:</b> each action is announced above the piles, and the cards it touched are labelled on the table (SPIED, SWAPPED, MATCHED…). Only what a player privately looked at stays hidden. Up to 7 players.</p>
   </details>`;
 }
@@ -867,7 +874,14 @@ function lobbyHTML(){
 
 function topHTML(){
   return `<div class="top"><div class="brand"><h1>Cabo</h1><span>${offline?'Practice':'Online'}${S.round?` · Game ${S.round}`:''}</span></div>
-   <div class="row">${S.phase==='lobby'?'':(isHost||offline)?`<button class="small ghost" id="memt" title="Memory mode: seen cards hide again">Memory: ${S.opts.memory?'on':'off'}</button>`:`<span class="note">Memory mode ${S.opts.memory?'on':'off'}</span>`}${!offline&&S.phase!=='lobby'?`<button class="small ghost" id="invbtn">Invite</button>`:''}<button class="small ghost" id="leave">Leave</button></div></div>`;
+   <div class="row">${S.phase==='lobby'?'':(isHost||offline)?`<button class="small ghost" id="memt" title="Memory mode: seen cards hide again">Memory: ${S.opts.memory?'on':'off'}</button>`:`<span class="note">Memory mode ${S.opts.memory?'on':'off'}</span>`}${!offline&&S.phase!=='lobby'?`<button class="small ghost" id="invbtn">Invite</button>`:''}<button class="small ghost" id="leave">Leave</button></div></div>${scoreHTML()}`;
+}
+// Games won by each player in this lobby, most first
+function scoreHTML(){
+  if(S.phase==='lobby'||!S.round) return '';
+  const top=Math.max(...S.players.map(p=>p.wins||0));
+  const rows=S.players.map((p,i)=>({p,i,w:p.wins||0})).sort((a,b)=>b.w-a.w||a.i-b.i);
+  return `<div class="scorebar"><span class="sblabel">Games won</span>${rows.map(r=>`<span class="sb${top>0&&r.w===top?' lead':''}"><span class="sn">${esc(r.p.name)}</span><b>${r.w}</b></span>`).join('')}</div>`;
 }
 
 function statusText(me){
@@ -954,10 +968,10 @@ function tableHTML(){
     results=`<div class="panel results" style="margin-bottom:16px">
       <div class="banner gold">${w.length>1?`🤝 Tie between ${w.map(i=>esc(pname(S,i))).join(' & ')}`:`🏆 ${esc(pname(S,w[0]))} wins!`}</div>
       ${S.tb?`<div class="note" style="text-align:center">${esc(S.tb)}</div>`:''}
-      <table><tr><th>Player</th><th>Hand</th><th>Points</th></tr>
+      <table><tr><th>Player</th><th>Hand</th><th>Points</th><th>Wins</th></tr>
       ${S.players.map((p,i)=>`<tr><td>${esc(p.name)}${w.includes(i)?' 🏆':''}${S.res[i].note?`<div class="note">${esc(S.res[i].note)}</div>`:''}</td>
         <td><div class="hand">${p.hand.filter(x=>x!=null).map(id=>cardHTML(id)).join('')}</div></td>
-        <td class="score">${S.res[i].sum}</td></tr>`).join('')}
+        <td class="score">${S.res[i].sum}</td><td class="score">${p.wins||0}</td></tr>`).join('')}
       </table>
       ${isHost||offline?`<button class="gold" id="again">Play again</button>`:`<div class="note">Waiting for the host to start another game…</div>`}
     </div>`;

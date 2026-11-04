@@ -29,6 +29,8 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
   - Meaning: if a card picked for a Jack/Queen/King swap is matched away mid-power, the selection resets and the player picks two cards again; a swap can never move a card into an empty spot.
 - **2026-11-04** — "the player who won the previous match is the first to go in the next match"
   - Meaning: applies to both "Next game" and "Play again". On a tie, the first tied player clockwise after the previous starter goes first.
+- **2026-11-04** — "create an overall arching match score counter so you can tell who has been winning more in one session"
+  - Meaning: a "Games won" bar on the table counts each player's wins in the current lobby (a tie counts for nobody), and the end-of-game table shows the same counts.
 
 ## How to work
 

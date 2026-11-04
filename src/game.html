@@ -233,6 +233,10 @@ input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
 .banner.gold{background:var(--gold);color:#2b1d00}
 .rules{font-size:14px;color:var(--muted);line-height:1.5}
 .rules b{color:var(--ink)}
+.hist{margin-top:14px;font-size:13px;color:var(--muted);text-align:left}
+.hist ol{margin:10px 0 0;padding-left:26px;display:grid;gap:4px;max-height:340px;overflow:auto}
+.hist li::marker{color:var(--muted);font-variant-numeric:tabular-nums}
+.hist li{color:var(--ink);line-height:1.4}
 details summary{cursor:pointer;color:var(--ink);font-weight:600}
 .away{opacity:.55}
 .toggle{display:flex;gap:8px;align-items:center;font-size:14px}
@@ -263,7 +267,7 @@ const RN=v=>v===0?'Joker':v===1?'Ace':v===11?'Jack':v===12?'Queen':v===13?'King'
 function newLobby(hostPeer, code){
   return {ver:0, code, host:hostPeer, phase:'lobby', players:[], opts:{memory:true}, round:0, log:[], start:0};
 }
-function addLog(S,msg){S.log.unshift(msg);if(S.log.length>9)S.log.length=9}
+function addLog(S,msg){S.logN=(S.logN||0)+1;S.log.unshift(msg);if(S.log.length>9)S.log.length=9}
 // Every player action is shown to everyone: a line of text plus a labelled highlight on the cards it touched.
 // cards: [[playerIndex, slot], ...]; never includes hidden values.
 function note(S,i,text,tag,cards){ addLog(S,text); S.last={n:(S.last?S.last.n:0)+1, by:i, text, tag:tag||null, cards:cards||[]}; }
@@ -821,8 +825,14 @@ function landingHTML(){
      ${claudeReady&&!room?`<div class="note">Online play needs this page opened from its shared Claude link while signed in. Practice mode works anywhere.</div>`:''}
      ${!claudeReady?`<div class="note">Connecting…</div>`:''}
    </div>
+   ${lastGameHTML()}
    ${rulesHTML()}
   </div>`;
+}
+function lastGameHTML(){
+  let g=null; try{ g=JSON.parse(LS.get('cabo-last-game')||'null') }catch(e){}
+  if(!g||!Array.isArray(g.lines)) return '';
+  return histHTML(g.lines,`Your last game (${new Date(g.when).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})})`,histOpen);
 }
 function rulesHTML(){
   return `<details class="panel rules"><summary>How to play</summary>
@@ -973,6 +983,7 @@ function tableHTML(){
         <td><div class="hand">${p.hand.filter(x=>x!=null).map(id=>cardHTML(id)).join('')}</div></td>
         <td class="score">${S.res[i].sum}</td><td class="score">${p.wins||0}</td></tr>`).join('')}
       </table>
+      ${histHTML(hist.lines,'What happened this game',histOpen)}
       ${isHost||offline?`<button class="gold" id="again">Play again</button>`:`<div class="note">Waiting for the host to start another game…</div>`}
     </div>`;
   }
@@ -997,7 +1008,8 @@ function tableHTML(){
      <div class="row" style="justify-content:space-between;margin-top:12px"><span class="note">${esc(P.name)} (you)${S.caboBy===me?' · you called CABO':''}</span><span></span></div>
    </div>`:`<div class="me"><div class="status">Watching</div></div>`}
    </div></div>
-   <div class="log">${S.log.map(l=>`<div>${esc(describe(l,me))}</div>`).join('')}</div>`;
+   <div class="log">${S.log.map(l=>`<div>${esc(describe(l,me))}</div>`).join('')}</div>
+   ${ended?'':histHTML(hist.lines,'Full game history',histOpen)}`;
 }
 
 function bindGame(){
@@ -1065,12 +1077,36 @@ function bindGame(){
 function toggleKing(pi,x){ const k=kingSel.findIndex(q=>q[0]===pi&&q[1]===x); if(k>=0) kingSel.splice(k,1); else if(kingSel.length<2) kingSel.push([pi,x]); render(); }
 // re-render when flashes expire
 setInterval(()=>{ if(view==='game'&&S&&S.opts&&S.opts.memory){const now=Date.now();let ch=false;for(const k in flash){if(flash[k]<=now){delete flash[k];ch=true}} if(ch) render()} },500);
+// Full history of the current game, recorded on each device as log lines arrive (the shared state only carries the
+// last few lines). The last finished game is kept in localStorage so it can be reviewed later.
+let hist={key:null,n:0,lines:[],done:false}, histOpen=false;
+function trackHist(){
+  if(!S||!S.round||S.phase==='lobby') return;
+  const me=myIndex(), key=(S.code||'practice')+'|'+S.round, N=S.logN||0;
+  if(hist.key!==key){ // new game: keep only the lines from this game's deal onward
+    const k=S.log.findIndex(l=>l===`Game ${S.round} dealt`);
+    hist={key,n:N,done:false,lines:(k>=0?S.log.slice(0,k+1):S.log.slice()).reverse().map(l=>describe(l,me))}; histOpen=false;
+  } else if(N>hist.n){
+    const k=N-hist.n; if(k>S.log.length) hist.lines.push('… (a few moves were missed while offline)');
+    hist.lines.push(...S.log.slice(0,Math.min(k,S.log.length)).reverse().map(l=>describe(l,me))); hist.n=N;
+  }
+  if(S.phase==='gameEnd'&&!hist.done&&S.res){
+    hist.done=true; histOpen=true;
+    hist.lines.push(...S.players.map((p,i)=>`Final hand · ${p.name}: ${p.hand.filter(x=>x!=null).map(id=>CN(S,id)).join(', ')||'no cards'} = ${S.res[i].sum} pts`));
+    LS.set('cabo-last-game',JSON.stringify({when:Date.now(),game:S.round,lines:hist.lines}));
+  }
+}
+function histHTML(lines,title,open){
+  return `<details class="panel hist" id="hist" ${open?'open':''}><summary>${esc(title)} <span class="note">· ${lines.length} entries</span></summary>
+    <ol>${lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ol></details>`;
+}
+document.addEventListener('toggle',e=>{ if(e.target.id==='hist') histOpen=e.target.open },true);
 // selection resets when the state moves on
 let lastKey='';
 const _render=render;
 let lastTop=null;
 render=function(){ if(S&&S.phase!=='turn') snapMode=false;
-  if(S&&kingSel.some(q=>!S.players[q[0]]||S.players[q[0]].hand[q[1]]==null)) kingSel=[]; /* a picked card was matched away: pick two again */ if(S){const k=S.phase+'|'+S.turn+'|'+(S.pending?S.pending.step+S.pending.id:'')+'|'+S.round; if(k!==lastKey){ if(!(S.phase==='peek'&&lastKey.startsWith('peek'))){sel.clear();swapOwn=null;kingSel=[]} lastKey=k } } _render() };
+  if(S&&kingSel.some(q=>!S.players[q[0]]||S.players[q[0]].hand[q[1]]==null)) kingSel=[]; /* a picked card was matched away: pick two again */ trackHist(); if(S){const k=S.phase+'|'+S.turn+'|'+(S.pending?S.pending.step+S.pending.id:'')+'|'+S.round; if(k!==lastKey){ if(!(S.phase==='peek'&&lastKey.startsWith('peek'))){sel.clear();swapOwn=null;kingSel=[]} lastKey=k } } _render() };
 
 render();
 initClaude();

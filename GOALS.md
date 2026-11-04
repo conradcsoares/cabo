@@ -31,6 +31,8 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
   - Meaning: applies to both "Next game" and "Play again". On a tie, the first tied player clockwise after the previous starter goes first.
 - **2026-11-04** — "create an overall arching match score counter so you can tell who has been winning more in one session"
   - Meaning: a "Games won" bar on the table counts each player's wins in the current lobby (a tie counts for nobody), and the end-of-game table shows the same counts.
+- **2026-11-04** — "can you keep track of the last match i played? i thought that my top right card was a joker not an 8? did this bug out or did i miss something"
+  - Meaning: every game keeps a full move-by-move history (with final hands) that each player can open during and after the game, and the last finished game stays viewable from the start page on that device.
 
 ## How to work
 

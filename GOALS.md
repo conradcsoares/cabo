@@ -19,6 +19,7 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
 - **2026-11-03** — "i am finding it hard to tell which card is the enemies opponents peek cards vs their top cards, i want the ui to mimic sitting across from the opponent at a table in real life, their cards that are the furthert away from me should be their original two cards and vise versa, make sure this is clear and the position of the cards does not change throughout the entire game unless unless they are added from the deck or swapped"
 - **2026-11-03** — "new rule for players once they call cabo, 1. when you call cabo your two top cards are now locked and cannot be swapped by any other players through powers such as jacks queens, or kings, they can still however be matched to give you extra cards, all other cards can still be swapped or matched after calling cabo"
   - Meaning: "top cards" = the caller's row opposite their gold peek row. Locked spots can still be looked at (SPY, KING look) and matched.
+- **2026-11-03** — "it is very easy to misclick cabo, another confirmation saying are you sure you want to call cabo to make it two clicks to call cabo rather than one would be nice"
 
 ## How to work
 

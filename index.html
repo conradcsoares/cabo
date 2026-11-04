@@ -188,6 +188,7 @@ input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
 .card.back::before{content:"";position:absolute;inset:calc(var(--cw)*.06);border:1px solid rgba(251,246,234,.4);border-radius:calc(var(--cw)*.07)}
 .card.back::after{content:"";width:calc(var(--cw)*.46);aspect-ratio:1;background:var(--backmark) center/contain no-repeat;opacity:.9}
 .card .hltag{position:absolute;left:50%;top:-9px;transform:translateX(-50%);z-index:2;white-space:nowrap}
+.actions .confirm{flex-basis:100%;text-align:center;font-size:14px;color:var(--ink);margin-bottom:2px}
 .hltag{font:700 10px/1 Outfit,sans-serif;letter-spacing:.08em;padding:3px 6px;border-radius:99px;background:var(--coral);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .card.hl{box-shadow:0 0 0 3px var(--coral),0 0 18px rgba(239,111,92,.55)}
 .card.hl.hl-new{animation:hlpulse 1.1s ease-out 2}
@@ -729,6 +730,8 @@ let room=null, user=null, gr=null, myPeer=null, myId=null;
 let isHost=false, offline=false, view='landing', err='', claudeReady=false, joinTimer=null;
 let peersHere=new Set();
 let sel=new Set(), swapOwn=null, kingSel=[], snapMode=false, flash={}, seenKeys=new Set();
+// CABO takes two taps: the first asks, the second (not a double-tap) calls it. The question lapses after 5 s or a new turn.
+let caboAsk=null; const caboAsking=()=>!!(caboAsk&&S&&caboAsk.key===S.round+':'+S.tc&&Date.now()-caboAsk.t<5000);
 let botTimer=null, beatTimer=null;
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 let myName=LS.get('cabo-name')||'';
@@ -1152,7 +1155,9 @@ function tableHTML(){
   const selectable = me>=0 && (giving || snapping ||  (myTurn&&pd&&(pd.step==='decide'||(pd.step==='ability'&&(pd.ab==='peek'||pd.ab==='king'||pd.ab==='swap')&&!(pd.ab==='swap'&&swapOwn!=null)))));
   let actions='';
   if(S.phase==='peek'&&P&&!P.peeked) actions=`<button class="gold" data-a="peek">Peek</button>`;
-  if(myTurn&&!pd) actions=`<button class="gold" data-a="draw" ${S.deck.length||S.discard.length>1?'':'disabled'}>Draw</button>${S.caboBy==null?`<button class="coral" data-a="cabo">CABO</button>`:''}`;
+  if(myTurn&&!pd) actions=caboAsking()&&S.caboBy==null
+    ? `<div class="confirm">Call CABO? Everyone else gets one last turn, then hands are revealed.</div><button class="ghost" data-a="cabono">Cancel</button><button class="coral" data-a="caboyes">Yes, call CABO</button>`
+    : `<button class="gold" data-a="draw" ${S.deck.length||S.discard.length>1?'':'disabled'}>Draw</button>${S.caboBy==null?`<button class="coral" data-a="cabo">CABO</button>`:''}`;
   if(myTurn&&pd&&pd.step==='decide'){
     const ab=ABIL(S.rk[pd.id]);
     actions=`<button class="gold" data-a="exchange" ${sel.size===1?'':'disabled'}>Swap</button>`+
@@ -1164,7 +1169,7 @@ function tableHTML(){
   if(giving) actions='';
   else if(snapping) actions=`<button class="ghost" data-a="snap">Cancel</button>`;
   else if(snapMode&&S.give) actions+=`<button class="ghost" data-a="snap">Cancel</button>`;
-  if(!giving&&!snapping&&me>=0&&S.phase==='turn'&&!S.give&&topId!=null) actions+=`<button class="coral" data-a="snap">Match</button>`;
+  if(!giving&&!snapping&&me>=0&&S.phase==='turn'&&!S.give&&topId!=null&&!(myTurn&&!pd&&caboAsking())) actions+=`<button class="coral" data-a="snap">Match</button>`;
 
   let results='';
   if(ended){
@@ -1251,7 +1256,10 @@ function bindGame(){
   document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a;
     if(a==='peek') act({t:'peek'});
-    else if(a==='draw'||a==='take'||a==='cabo'||a==='skip') act({t:a});
+    else if(a==='cabo'){ caboAsk={key:S.round+':'+S.tc,t:Date.now()}; render(); setTimeout(()=>{ if(caboAsk&&!caboAsking()){caboAsk=null;render()} },5100); }
+    else if(a==='caboyes'){ if(!caboAsking()||Date.now()-caboAsk.t<400) return; caboAsk=null; act({t:'cabo'}); }
+    else if(a==='cabono'){ caboAsk=null; render(); }
+    else if(a==='draw'||a==='take'||a==='skip') act({t:a});
     else if(a==='exchange') act({t:'exchange',slots:[...sel].sort((p,q)=>p-q)});
     else if(a==='discard') act({t:'discard',use:false});
     else if(a==='use') act({t:'discard',use:true});

@@ -69,6 +69,30 @@ JS = r"""() => {
   W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'king'}; apply(W,0,{t:'ability',picks:[[0,1],[2,0]]}); apply(W,0,{t:'kingswap',swap:false});
   out.kingLeave=[who(W,mine), who(W,theirs)];
 
+  // CABO locks the caller's top two spots against swaps (not against looking or matching)
+  const caboGame=()=>{ const T=game(3); T.turn=1; apply(T,1,{t:'cabo'}); T.turn=0; return T; };
+  let C=caboGame(); const callNote=[C.last.tag, JSON.stringify(C.last.cards)];
+  const before0=C.players[1].hand.slice();
+  C.pending={src:'deck',id:C.deck.pop(),step:'ability',ab:'swap'};
+  const lockedSwap=apply(C,0,{t:'ability',slot:0,target:1,tslot:0});
+  const unchanged=JSON.stringify(C.players[1].hand)===JSON.stringify(before0);
+  const openSwap=apply(C,0,{t:'ability',slot:0,target:1,tslot:2});
+  out.caboSwap=[callNote, lockedSwap, unchanged, openSwap, C.players[1].hand[2]!==before0[2]];
+  C=caboGame(); C.pending={src:'deck',id:C.deck.pop(),step:'ability',ab:'king'};
+  const look=apply(C,0,{t:'ability',picks:[[0,0],[1,1]]}); const sees=knows(C,0,C.players[1].hand[1]);
+  const kswap=apply(C,0,{t:'kingswap',swap:true}); const stillKing2=C.pending&&C.pending.step;
+  const kleave=apply(C,0,{t:'kingswap',swap:false});
+  out.caboKing=[look, sees, kswap, stillKing2, kleave];
+  C=caboGame(); const ctop=C.discard[C.discard.length-1]; C.players[1].hand[0]=C.vals.findIndex((v,id)=>id!==ctop&&C.rk[id]===C.rk[ctop]&&!C.players.some(p=>p.hand.includes(id)));
+  C.matched=false; const m=apply(C,2,{t:'snap',target:1,slot:0});
+  out.caboMatch=[m, C.players[1].hand[0], !!C.give];
+  // bots never aim a swap at a locked spot
+  C=caboGame(); let botHits=0;
+  for(let k=0;k<200;k++){ C.pending={src:'deck',id:C.deck[0],step:'ability',ab:k%2?'king':'swap'};
+    C.players.forEach((p,pi)=>p.hand.forEach(id=>know(C,0,id)));
+    const a=botAct(C,0); if(a.t==='ability'&&((a.picks||[]).some(q=>isLocked(C,q[0],q[1]))||(a.target!=null&&isLocked(C,a.target,a.tslot)))) botHits++; }
+  out.botLock=botHits;
+
   // the host seats at most 7 people
   S = newLobby('host','ABCD'); isHost = true; myPeer = 'host'; S.players.push({pid:'h', peer:'host', name:'Host'});
   for (let k=1;k<=9;k++) onRemoteAct({data:{t:'join', name:'P'+k}, peer:'p'+k, by:'u'+k});
@@ -111,6 +135,14 @@ async def main():
     ks = r["kingSwap"]
     check("King swap: only the King player knows the swapped cards", ks[0] and ks[1] and ks[2] == [0] and ks[3] == [0], ks)
     check("King look without swapping changes nobody's knowledge", r["kingLeave"] == [[0, 1, 2], [0, 1, 2]], r["kingLeave"])
+    c = r["caboSwap"]
+    check("calling CABO announces and labels the locked top two", c[0] == ["LOCKED", "[[1,0],[1,1]]"], c[0])
+    check("SWAP can't take a CABO caller's top two; their other cards still swap", isinstance(c[1], str) and "locked" in c[1] and c[2] and c[3] is None and c[4], c)
+    k = r["caboKing"]
+    check("KING may look at a locked card but not swap it", k[0] is None and k[1] and isinstance(k[2], str) and k[3] == "king2" and k[4] is None, k)
+    m = r["caboMatch"]
+    check("a locked card can still be matched (and the matcher gives a card)", m[0] is None and m[1] is None and m[2], m)
+    check("bots never aim a swap at a locked card", r["botLock"] == 0, r["botLock"])
     print("\nALL PASSED" if not fails else f"\n{len(fails)} FAILED"); sys.exit(1 if fails else 0)
 
 asyncio.run(main())

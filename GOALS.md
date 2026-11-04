@@ -17,6 +17,8 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
   - Meaning: after a Jack/Queen swap, nobody (not even the swapper) knows either swapped card's value. After a King swap, only the King player knows them. Everyone still sees which positions were swapped (per the "aware of every action" goal).
 - **2026-11-03** — "only one match can be used on each card, for example if i match a 7 on top of a seven, if a second player tries to match on top of it after me they will draw an extra card because they were too slow, they only draw an extra card if they click on the card to place it down, not if they are in the match action"
 - **2026-11-03** — "i am finding it hard to tell which card is the enemies opponents peek cards vs their top cards, i want the ui to mimic sitting across from the opponent at a table in real life, their cards that are the furthert away from me should be their original two cards and vise versa, make sure this is clear and the position of the cards does not change throughout the entire game unless unless they are added from the deck or swapped"
+- **2026-11-03** — "new rule for players once they call cabo, 1. when you call cabo your two top cards are now locked and cannot be swapped by any other players through powers such as jacks queens, or kings, they can still however be matched to give you extra cards, all other cards can still be swapped or matched after calling cabo"
+  - Meaning: "top cards" = the caller's row opposite their gold peek row. Locked spots can still be looked at (SPY, KING look) and matched.
 
 ## How to work
 

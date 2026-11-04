@@ -1,6 +1,6 @@
-# Cabo with Friends
+# Cambio with Friends
 
-An online version of the Cabo card game, played with house rules, so friends can play together from a link.
+An online version of the Cambio card game, played with house rules, so friends can play together from a link.
 
 **Play:** open the site, then one person taps **Create a game** and shares the 4-letter code or the invite link. Everyone else enters the code and taps **Join**, or just opens the link. Players can be on different devices and different networks (home Wi‑Fi, mobile data, work).
 

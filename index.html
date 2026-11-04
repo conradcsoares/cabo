@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cabo with Friends</title>
+<title>Cambio with Friends</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -522,10 +522,10 @@ function know(S,i,id){const k=S.kn[id]||(S.kn[id]=[]);if(!k.includes(i))k.push(i
 // After a swap, what anyone remembered about the two moved cards no longer counts: a Jack/Queen swap is blind
 // for everyone (keep=null); after a King swap only the King player (keep) knows them.
 function forget(S,ids,keep){ ids.forEach(id=>{ if(keep==null) delete S.kn[id]; else S.kn[id]=[keep]; }); }
-// Once a player calls CABO, their top two spots (the row opposite their peek row) are locked against swaps from
+// Once a player calls CAMBIO, their top two spots (the row opposite their peek row) are locked against swaps from
 // Jack/Queen/King powers. They can still be looked at and matched; their other cards are fair game as before.
 const isLocked=(S,pi,x)=>S.caboBy!=null&&S.caboBy===pi&&(x===0||x===1);
-const lockMsg=S=>`${pname(S,S.caboBy)} called CABO, so their top two cards are locked and can't be swapped`;
+const lockMsg=S=>`${pname(S,S.caboBy)} called CAMBIO, so their top two cards are locked and can't be swapped`;
 function knows(S,i,id){return !!(S.up[id]||(S.kn[id]&&S.kn[id].includes(i)))}
 
 // Last game's winner goes first. On a tie, the first tied player after last game's starter goes first.
@@ -574,11 +574,11 @@ function endRound(S){
   const cnt=S.players.map(p=>p.hand.filter(x=>x!=null).length);
   let w=S.players.map((p,i)=>i).filter(i=>sums[i]===min); S.tb='';
   if(w.length>1){ const mc=Math.max(...w.map(i=>cnt[i])); const w2=w.filter(i=>cnt[i]===mc); if(w2.length<w.length){w=w2;S.tb='Tie on points — most cards wins'} }
-  if(w.length>1&&w.includes(S.caboBy)){ w=[S.caboBy]; S.tb='Tie on points and cards — CABO caller wins' }
+  if(w.length>1&&w.includes(S.caboBy)){ w=[S.caboBy]; S.tb='Tie on points and cards — CAMBIO caller wins' }
   if(w.length>1) S.tb='Tied on points and cards — it’s a tie';
   S.winners=w;
   if(w.length===1) S.players[w[0]].wins=(S.players[w[0]].wins||0)+1; // session tally; a tie counts for nobody
-  S.res=S.players.map((p,i)=>({sum:sums[i],cards:cnt[i],note:S.caboBy===i?'Called CABO':''}));
+  S.res=S.players.map((p,i)=>({sum:sums[i],cards:cnt[i],note:S.caboBy===i?'Called CAMBIO':''}));
   S.pending=null; S.give=null; S.phase='gameEnd';
   addLog(S,`Game over — ${w.length>1?'tie between '+w.map(i=>pname(S,i)).join(' & '):pname(S,w[0])+' wins'} with ${min} point${Math.abs(min)===1?'':'s'}`);
 }
@@ -639,7 +639,7 @@ function apply(S,i,a){
       note(S,i,`${P.name} drew a card`); return null;
     case 'cabo':
       if(pd||S.caboBy!=null) return 'Cannot call now';
-      S.caboBy=i; S.finalLeft=n-1; note(S,i,`${P.name} called CABO! Their top two cards are now locked`,'LOCKED',[[i,0],[i,1]].filter(q=>validSlot(P,q[1])));
+      S.caboBy=i; S.finalLeft=n-1; note(S,i,`${P.name} called CAMBIO! Their top two cards are now locked`,'LOCKED',[[i,0],[i,1]].filter(q=>validSlot(P,q[1])));
       endTurn(S,true); return null;
     case 'discard': {
       if(!pd||pd.src!=='deck'||pd.step!=='decide') return 'Not now';
@@ -754,7 +754,7 @@ let room=null, user=null, gr=null, myPeer=null, myId=null;
 let isHost=false, offline=false, view='landing', err='', claudeReady=false, joinTimer=null;
 let peersHere=new Set();
 let sel=new Set(), swapOwn=null, kingSel=[], snapMode=false, flash={}, seenKeys=new Set();
-// CABO takes two taps: the first asks, the second (not a double-tap) calls it. The question lapses after 5 s or a new turn.
+// CAMBIO takes two taps: the first asks, the second (not a double-tap) calls it. The question lapses after 5 s or a new turn.
 let caboAsk=null; const caboAsking=()=>!!(caboAsk&&S&&caboAsk.key===S.round+':'+S.tc&&Date.now()-caboAsk.t<5000);
 let botTimer=null, beatTimer=null;
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -1016,7 +1016,7 @@ let seenCabo=undefined, seenPhase=undefined;
 function moments(){
   if(!S||!S.players) return;
   const first=seenPhase===undefined;
-  if(!first&&S.caboBy!=null&&seenCabo==null&&S.phase==='turn') toast('CABO!',pname(S,S.caboBy));
+  if(!first&&S.caboBy!=null&&seenCabo==null&&S.phase==='turn') toast('CAMBIO!',pname(S,S.caboBy));
   if(!first&&S.phase==='gameEnd'&&seenPhase!=='gameEnd'){ const w=S.winners||[]; if(w.length===1){toast(`${pname(S,w[0])} wins!`);confetti()} else toast('It’s a tie!'); }
   seenCabo=S.caboBy; seenPhase=S.phase;
 }
@@ -1042,7 +1042,7 @@ function landingHTML(){
       ${faceHTML(1,'♠',null,{ab:false})}
     </div>`;
   if(inviteCode) return `<div class="landing">
-   <div>${fan}<h1>Cabo</h1><p>Joining game ${esc(inviteCode)}…</p></div>
+   <div>${fan}<h1>Cambio</h1><p>Joining game ${esc(inviteCode)}…</p></div>
    <div class="panel" style="display:grid;gap:12px">
      ${err&&err!=='Joining…'?`<div class="err">${esc(err)}</div>
        <div><div class="lbl">Your name</div><input type="text" id="name" maxlength="18" value="${esc(myName)}"></div>
@@ -1051,7 +1051,7 @@ function landingHTML(){
    </div>
   </div>`;
   return `<div class="landing">
-   <div>${fan}<h1>Cabo</h1><p>The memory card game — play with friends online.</p></div>
+   <div>${fan}<h1>Cambio</h1><p>The memory card game — play with friends online.</p></div>
    <div class="panel" style="display:grid;gap:14px">
      <div><div class="lbl">Your name</div><input type="text" id="name" maxlength="18" value="${esc(myName)}" placeholder="e.g. Conrad"></div>
      <button class="gold" id="create" ${claudeReady?'':'disabled'}>Create a game</button>
@@ -1074,13 +1074,13 @@ function rulesHTML(){
   return `<details class="panel rules"><summary>How to play</summary>
   <p><b>Goal:</b> have the fewest points when the game ends. Uses a regular 54-card deck: <b>Joker = −2, red King = −1, Ace = 1, 2–10 = face value, Jack = 11, Queen = 12, black King = 13</b>.</p>
   <p>Everyone gets 4 face-down cards in a 2×2 square and peeks at their <b>bottom two</b> at the start. After that, you only see your cards again by using powers.</p>
-  <p><b>On your turn</b>, do one of these:<br>• <b>Draw from the deck</b>, then either discard it (using its power, if it has one) or swap it with one of your cards. A card you swap out doesn't use its power.<br>• <b>Call CABO.</b> That's your whole turn. Everyone else gets one more turn, then all cards are revealed.</p>
+  <p><b>On your turn</b>, do one of these:<br>• <b>Draw from the deck</b>, then either discard it (using its power, if it has one) or swap it with one of your cards. A card you swap out doesn't use its power.<br>• <b>Call CAMBIO.</b> That's your whole turn. Everyone else gets one more turn, then all cards are revealed.</p>
   <p><b>Powers</b> (when you discard the card you drew): 7–8 <b>PEEK</b> at one of your cards · 9–10 <b>SPY</b> on an opponent's card · Jack/Queen <b>SWAP</b> any two cards on the table (yours or anyone's), blind: everyone sees which two cards moved, but nobody, not even you, learns what they are · King <b>KING</b>: look at any two cards on the table, then swap them or leave them. Only you see them; if you swap, nobody else learns what moved, even a card they had memorized.</p>
   <p><b>The table</b> is laid out like sitting together: your cards as you hold them, everyone else's turned to face their owner. Each hand's <b>gold row</b> is its peek row, the two cards its owner looked at at the start: nearest you for your own hand, furthest from you for opponents. Cards never move around: a matched card leaves a gap, and a spot only changes when a card is swapped or added.</p>
   <p><b>Matching the top card</b> (anyone, any time): if you think a card matches the rank on top of the discard pile, play it.<br>• Your own card, correct: it's gone, so you have one fewer card.<br>• Another player's card, correct: it's discarded, and you give that player one of your cards.<br>• Wrong: everyone sees the card, it goes back, and you take a penalty card.<br>• <b>Only one match per discarded card.</b> Once someone matches it, anyone who places a card on it after that was too slow and takes a penalty card. Turning on Match mode alone costs nothing.</p>
   <p><b>Jokers are wild:</b> a Joker matches any card, and any card can be matched onto a discarded Joker. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
-  <p><b>Calling CABO locks your top two cards</b> (the row opposite your gold peek row): nobody can swap them with a Jack, Queen or King. They can still be looked at and matched, and your other cards can still be swapped or matched.</p>
-  <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. The winner goes first next game, and the Games won bar counts each player's wins in this lobby (a tie counts for nobody). When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
+  <p><b>Calling CAMBIO locks your top two cards</b> (the row opposite your gold peek row): nobody can swap them with a Jack, Queen or King. They can still be looked at and matched, and your other cards can still be swapped or matched.</p>
+  <p><b>Winning:</b> once CAMBIO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CAMBIO caller wins if they're one of them. Otherwise it's a tie. The winner goes first next game, and the Games won bar counts each player's wins in this lobby (a tie counts for nobody). When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
   <p><b>Everyone sees every move:</b> each action is announced above the piles, and the cards it touched are labelled on the table (SPIED, SWAPPED, MATCHED…). Only what a player privately looked at stays hidden. Up to 7 players.</p>
   </details>`;
 }
@@ -1119,7 +1119,7 @@ function lobbyHTML(){
 }
 
 function topHTML(){
-  return `<div class="top"><div class="brand"><h1>Cabo</h1><span>${offline?'Practice':'Online'}${S.round?` · Game ${S.round}`:''}</span></div>
+  return `<div class="top"><div class="brand"><h1>Cambio</h1><span>${offline?'Practice':'Online'}${S.round?` · Game ${S.round}`:''}</span></div>
    <div class="row">${S.phase==='lobby'?'':(isHost||offline)?`<button class="small ghost" id="memt" title="Memory mode: seen cards hide again">Memory: ${S.opts.memory?'on':'off'}</button>`:`<span class="note">Memory mode ${S.opts.memory?'on':'off'}</span>`}${!offline&&S.phase!=='lobby'?`<button class="small ghost" id="invbtn">Invite</button>`:''}<button class="small ghost" id="leave">Leave</button></div></div>${scoreHTML()}`;
 }
 // Games won by each player in this lobby, most first
@@ -1137,7 +1137,7 @@ function statusText(me){
   if(S.give) return `${esc(pname(S,S.give.from))} is giving a card…`;
   if(snapMode) return 'Tap a card to match';
   const t=S.turn, P=S.players[t], pd=S.pending;
-  const cabo=S.caboBy!=null?` <span class="tag gold">CABO · ${S.finalLeft} left</span>`:'';
+  const cabo=S.caboBy!=null?` <span class="tag gold">CAMBIO · ${S.finalLeft} left</span>`:'';
   if(t!==me) return `${esc(P.name)}’s turn${cabo}`;
   if(!pd) return `<b>Your turn</b>${cabo}`;
   if(pd.step==='choose') return 'Pick a power';
@@ -1173,12 +1173,12 @@ function tableHTML(){
   // the last action's cards, labelled for everyone (key changes per action, so the pulse replays)
   const L=S.phase==='turn'?S.last:null, hit=(pi,x)=>L&&L.tag&&L.cards.some(q=>q[0]===pi&&q[1]===x);
   const fresh=L&&(!fxPrev||fxPrev.lastact!==L.n);
-  const LOCK=`<span class="lockb" title="Locked: CABO was called"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1zm2 0h6V7a3 3 0 0 0-6 0v3z"/></svg></span>`;
+  const LOCK=`<span class="lockb" title="Locked: CAMBIO was called"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1zm2 0h6V7a3 3 0 0 0-6 0v3z"/></svg></span>`;
   const H0=(pi,x)=>hit(pi,x)?{hl:' hl'+(fresh?' hl-new':''),badge:`<span class="hltag">${L.tag}</span>`}:{hl:'',badge:''};
   const H=(pi,x)=>{ const h=H0(pi,x); if(S.phase==='turn'&&isLocked(S,pi,x)){ h.hl+=' locked'; h.badge+=LOCK; } return h; };
   const seat=i=>{const p=S.players[i]; const away=!p.bot&&!offline&&!peersHere.has(p.peer);
     return `<div class="seat ${S.phase==='turn'&&S.turn===i?'turn':''} ${oppTarget?'target':''} ${away?'away':''}">
-      <div class="seathead"><b><span class="nm">${esc(p.name)}</span>${p.bot?'<span class="tag">bot</span>':''}${away?'<span class="tag">away</span>':''}${S.caboBy===i?'<span class="tag gold">CABO</span>':''}</b></div>
+      <div class="seathead"><b><span class="nm">${esc(p.name)}</span>${p.bot?'<span class="tag">bot</span>':''}${away?'<span class="tag">away</span>':''}${S.caboBy===i?'<span class="tag gold">CAMBIO</span>':''}</b></div>
       ${handRows(i,me,(id,x)=>{const h=H(i,x); return id==null?cardHTML(0,{empty:1,cls:h.hl,badge:h.badge}):(()=>{const vz=visible(i,x,id);return cardHTML(vz?id:null,{cls:(vz==='pub'?'pub':vz==='mem'?'mem':vz==='flash'?'flash':'')+cardFx('c'+i+':'+x,id,vz)+(oppTarget?' click':'')+(kSel(i,x)?' sel':'')+h.hl,badge:h.badge,attr:`data-opp="${i}" data-slot="${x}"`})})()})}
       ${away&&isHost&&!p.bot?`<div style="margin-top:8px"><button class="small ghost" data-botify="${i}">Bot plays</button></div>`:''}
     </div>`};
@@ -1193,8 +1193,8 @@ function tableHTML(){
   let actions='';
   if(S.phase==='peek'&&P&&!P.peeked) actions=`<button class="gold" data-a="peek">Peek</button>`;
   if(myTurn&&!pd) actions=caboAsking()&&S.caboBy==null
-    ? `<div class="confirm">Call CABO? Everyone else gets one last turn, then hands are revealed.</div><button class="ghost" data-a="cabono">Cancel</button><button class="coral" data-a="caboyes">Yes, call CABO</button>`
-    : `<button class="gold" data-a="draw" ${S.deck.length||S.discard.length>1?'':'disabled'}>Draw</button>${S.caboBy==null?`<button class="coral" data-a="cabo">CABO</button>`:''}`;
+    ? `<div class="confirm">Call CAMBIO? Everyone else gets one last turn, then hands are revealed.</div><button class="ghost" data-a="cabono">Cancel</button><button class="coral" data-a="caboyes">Yes, call CAMBIO</button>`
+    : `<button class="gold" data-a="draw" ${S.deck.length||S.discard.length>1?'':'disabled'}>Draw</button>${S.caboBy==null?`<button class="coral" data-a="cabo">CAMBIO</button>`:''}`;
   if(myTurn&&pd&&pd.step==='decide'){
     const ab=ABIL(S.rk[pd.id]);
     actions=`<button class="gold" data-a="exchange" ${sel.size===1?'':'disabled'}>Swap</button>`+
@@ -1241,7 +1241,7 @@ function tableHTML(){
         const vz=visible(me,x,id);
         return cardHTML(vz?id:null,{cls:(vz==='pub'?'pub':vz==='mem'?'mem':vz==='flash'?'flash':'')+cardFx('c'+me+':'+x,id,vz)+(selectable?' click':'')+((sel.has(x)||swapOwn===x||kSel(me,x))?' sel':'')+h.hl,badge:h.badge,attr:`data-mine="${x}"`}) })}
      <div class="actions">${actions}</div>
-     <div class="row" style="justify-content:space-between;margin-top:12px"><span class="note">${esc(P.name)} (you)${S.caboBy===me?' · you called CABO':''}</span><span></span></div>
+     <div class="row" style="justify-content:space-between;margin-top:12px"><span class="note">${esc(P.name)} (you)${S.caboBy===me?' · you called CAMBIO':''}</span><span></span></div>
    </div>`:`<div class="me"><div class="status">Watching</div></div>`}
    </div></div>
    <div class="log">${S.log.map(l=>`<div>${esc(describe(l,me))}</div>`).join('')}</div>
@@ -1255,13 +1255,13 @@ function bindGame(){
   const copyText=(text,btn,label)=>{ const done=()=>{btn.textContent='Copied!';setTimeout(()=>{if(btn.isConnected)btn.textContent=label},1600)};
     try{ navigator.clipboard.writeText(text).then(done,()=>{btn.textContent=text}) }catch(e){ btn.textContent=text } };
   if($('copycode')) $('copycode').onclick=()=>copyText(S.code,$('copycode'),'Copy code');
-  if($('invbtn')) $('invbtn').onclick=()=>{ const link=inviteLink(S.code); if(navigator.share&&window.__caboStandalone){navigator.share({title:'Play Cabo with me',url:link}).catch(()=>{});return} copyText(link,$('invbtn'),'Invite'); };
+  if($('invbtn')) $('invbtn').onclick=()=>{ const link=inviteLink(S.code); if(navigator.share&&window.__caboStandalone){navigator.share({title:'Play Cambio with me',url:link}).catch(()=>{});return} copyText(link,$('invbtn'),'Invite'); };
   const doRename=()=>{ const v=($('myname').value||'').trim().slice(0,18); if(!v) return; myName=v; LS.set('cabo-name',v);
     if(isHost){ const p=S.players[myIndex()]; if(p){p.name=v; broadcast();} } else if(gr){ gr.emit('act',{t:'join',name:v}).catch(()=>{}); } };
   if($('rename')) $('rename').onclick=doRename;
   if($('myname')) $('myname').onkeydown=e=>{ if(e.key==='Enter') doRename(); };
   if($('copy')) $('copy').onclick=()=>{ const link=inviteLink(S.code), btn=$('copy');
-    if(navigator.share&&window.__caboStandalone){ navigator.share({title:'Play Cabo with me',url:link}).catch(()=>{}); return; }
+    if(navigator.share&&window.__caboStandalone){ navigator.share({title:'Play Cambio with me',url:link}).catch(()=>{}); return; }
     const done=()=>{btn.textContent='Copied!';setTimeout(()=>{if(btn.isConnected)btn.textContent='Copy link'},1800)};
     const fallback=()=>{ const i=$('invite'); i.focus(); i.select(); try{document.execCommand('copy');done()}catch(e){btn.textContent='Select & copy the link'} };
     try{ navigator.clipboard.writeText(link).then(done,fallback) }catch(e){ fallback() } };

@@ -33,6 +33,8 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
   - Meaning: a "Games won" bar on the table counts each player's wins in the current lobby (a tie counts for nobody), and the end-of-game table shows the same counts.
 - **2026-11-04** — "can you keep track of the last match i played? i thought that my top right card was a joker not an 8? did this bug out or did i miss something"
   - Meaning: every game keeps a full move-by-move history (with final hands) that each player can open during and after the game, and the last finished game stays viewable from the start page on that device.
+- **2026-11-04** — "i want to change the name of the game to cambio, cabo is copyrighted and misrepresents the rules of the game, all instances where cabo is mentioned or said in the game should be changed to cambio"
+  - Meaning: every name, button, message, rule and share text players see says Cambio / CAMBIO. Internal code names are unchanged. The site address still ends in /cabo until the GitHub repository is renamed.
 
 ## How to work
 

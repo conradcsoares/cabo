@@ -75,7 +75,7 @@ JS = r"""() => {
   const hand0=W.players[0].hand.filter(x=>x!=null).length, km=apply(W,2,{t:'snap',target:2,slot:0});
   out.kingMatched=[km, W.pending.step, W.pending.picks===undefined, apply(W,0,{t:'kingswap',swap:true})!==null, W.players[0].hand.filter(x=>x!=null).length===hand0];
 
-  // CABO locks the caller's top two spots against swaps (not against looking or matching)
+  // CAMBIO locks the caller's top two spots against swaps (not against looking or matching)
   const caboGame=()=>{ const T=game(3); T.turn=1; apply(T,1,{t:'cabo'}); T.turn=0; return T; };
   let C=caboGame(); const callNote=[C.last.tag, JSON.stringify(C.last.cards)];
   const before0=C.players[1].hand.slice();
@@ -151,8 +151,8 @@ async def main():
     check("King swap: only the King player knows the swapped cards", ks[0] and ks[1] and ks[2] == [0] and ks[3] == [0], ks)
     check("King look without swapping changes nobody's knowledge", r["kingLeave"] == [[0, 1, 2], [0, 1, 2]], r["kingLeave"])
     c = r["caboSwap"]
-    check("calling CABO announces and labels the locked top two", c[0] == ["LOCKED", "[[1,0],[1,1]]"], c[0])
-    check("SWAP can't take a CABO caller's top two; their other cards still swap", isinstance(c[1], str) and "locked" in c[1] and c[2] and c[3] is None and c[4], c)
+    check("calling CAMBIO announces and labels the locked top two", c[0] == ["LOCKED", "[[1,0],[1,1]]"], c[0])
+    check("SWAP can't take a CAMBIO caller's top two; their other cards still swap", isinstance(c[1], str) and "locked" in c[1] and c[2] and c[3] is None and c[4], c)
     check("SWAP can trade two opponents' cards", a["swapOthers"][0] is None and a["swapOthers"][3] == "[[1,0],[2,3]]", a["swapOthers"])
     check("any card can be matched onto a discarded Joker", r["jokerTop"][0] is None and r["jokerTop"][1] is None and r["jokerTop"][2], r["jokerTop"])
     k = r["caboKing"]

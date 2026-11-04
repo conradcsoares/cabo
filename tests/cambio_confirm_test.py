@@ -1,6 +1,6 @@
-"""Calling CABO takes two deliberate taps.
+"""Calling CAMBIO takes two deliberate taps.
 
-    python3 tests/cabo_confirm_test.py      (exits non-zero on failure)
+    python3 tests/cambio_confirm_test.py      (exits non-zero on failure)
 """
 import asyncio, os, pathlib, sys
 from playwright.async_api import async_playwright
@@ -25,15 +25,15 @@ async def main():
         check("first tap only asks", await p.evaluate("S.caboBy") is None and await p.locator("[data-a=caboyes]").count() == 1)
         check("Draw and Match are hidden while asking", await p.locator("[data-a=draw]").count() == 0 and await p.locator("[data-a=snap]").count() == 0)
         await p.click("[data-a=caboyes]")  # immediately: a double-tap
-        check("a double-tap doesn't call CABO", await p.evaluate("S.caboBy") is None)
+        check("a double-tap doesn't call CAMBIO", await p.evaluate("S.caboBy") is None)
         await p.click("[data-a=cabono]")
-        check("Cancel goes back to Draw / CABO", await p.evaluate("S.caboBy") is None and await p.locator("[data-a=draw]").count() == 1)
+        check("Cancel goes back to Draw / CAMBIO", await p.evaluate("S.caboBy") is None and await p.locator("[data-a=draw]").count() == 1)
 
         await p.click("[data-a=cabo]"); await p.wait_for_timeout(5400)
         check("the question lapses after 5 s", await p.locator("[data-a=caboyes]").count() == 0 and await p.locator("[data-a=cabo]").count() == 1)
 
         await p.click("[data-a=cabo]"); await p.wait_for_timeout(600); await p.click("[data-a=caboyes]")
-        check("a deliberate second tap calls CABO", await p.evaluate("S.caboBy") == 0, await p.evaluate("S.log[0]"))
+        check("a deliberate second tap calls CAMBIO", await p.evaluate("S.caboBy") == 0, await p.evaluate("S.log[0]"))
         check("no page errors", not errs, errs)
         await b.close()
     print("\nALL PASSED" if not fails else f"\n{len(fails)} FAILED"); sys.exit(1 if fails else 0)

@@ -49,7 +49,7 @@ JS = r"""() => {
 
   // every action names the player, the card owner and position, and highlights it for everyone
   const acts={};
-  const withPower=(ab,a)=>{ const T=game(3); T.turn=0; T.pending={src:'deck',id:T.deck.pop(),step:'ability',ab}; const e=apply(T,0,a); return [e,T.last.tag,T.last.text,JSON.stringify(T.last.cards)]; };
+  const withPower=(ab,a)=>{ const T=game(3); T.turn=0; T.pending={src:'deck',id:T.deck.pop(),step:'ability',ab}; const e=apply(T,0,a); return [e,T.last.tag,describe(T.last.text,0),JSON.stringify(T.last.cards)]; }; // as P0 sees the table
   acts.spy=withPower('spy',{t:'ability',target:2,slot:1});
   acts.peek=withPower('peek',{t:'ability',slot:2});
   acts.swap=withPower('swap',{t:'ability',slot:0,target:1,tslot:3});
@@ -73,6 +73,8 @@ JS = r"""() => {
   S = newLobby('host','ABCD'); isHost = true; myPeer = 'host'; S.players.push({pid:'h', peer:'host', name:'Host'});
   for (let k=1;k<=9;k++) onRemoteAct({data:{t:'join', name:'P'+k}, peer:'p'+k, by:'u'+k});
   out.seated = S.players.length;
+  // positions as each seat sees them: your own hand as held, an opponent's turned 180 degrees
+  out.views = [0,1,2,3].map(x=>[viewPos(0,x,0), viewPos(1,x,0)]);
   return out;
 }"""
 
@@ -98,10 +100,12 @@ async def main():
     check("a second match on the same card costs one penalty card, card stays hidden", t[0] is None and t[1] == 1 and t[2] and t[3] and t[4] == "PENALTY" and "too slow" in t[5], t)
     check("a new discard opens matching again", r["reopened"] is False, r["reopened"])
     a = r["acts"]
-    check("SPY is shown: who, whose card, which one", a["spy"][1] == "SPIED" and "used SPY on P2's top-right card" in a["spy"][2] and a["spy"][3] == "[[2,1]]", a["spy"])
+    check("SPY is shown: who, whose card, which one (opponent hands are turned around)", a["spy"][1] == "SPIED" and "used SPY on P2's bottom-left card" in a["spy"][2] and a["spy"][3] == "[[2,1]]", a["spy"])
     check("PEEK is shown with the card position", a["peek"][1] == "PEEKED" and "bottom-left" in a["peek"][2] and a["peek"][3] == "[[0,2]]", a["peek"])
-    check("SWAP is shown with both cards", a["swap"][1] == "SWAPPED" and "P1's bottom-right" in a["swap"][2] and a["swap"][3] == "[[0,0],[1,3]]", a["swap"])
-    check("KING look is shown with both cards", a["king"][1] == "LOOKED" and "P2's top-left" in a["king"][2] and a["king"][3] == "[[0,1],[2,0]]", a["king"])
+    check("SWAP is shown with both cards", a["swap"][1] == "SWAPPED" and "their top-left card for P1's top-left" in a["swap"][2] and a["swap"][3] == "[[0,0],[1,3]]", a["swap"])
+    check("KING look is shown with both cards", a["king"][1] == "LOOKED" and "their own top-right card and P2's bottom-right" in a["king"][2] and a["king"][3] == "[[0,1],[2,0]]", a["king"])
+    check("own hand as held, opponents' turned around (their peek row furthest away)",
+          r["views"] == [["top-left","bottom-right"],["top-right","bottom-left"],["bottom-left","top-right"],["bottom-right","top-left"]], r["views"])
     bs = r["blindSwap"]
     check("Jack/Queen swap is blind: nobody knows either card afterwards", bs[0] and bs[1] and bs[2] == [] and bs[3] == [] and bs[4] == "SWAPPED", bs)
     ks = r["kingSwap"]

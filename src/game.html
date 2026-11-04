@@ -144,14 +144,18 @@ input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
   .opps.many{gap:6px}
   .opps.many .seat{min-width:0;flex:1 1 30%;max-width:calc(33.4% - 4px);padding:7px 6px}
   .opps.many .seathead{font-size:12px;gap:4px;margin-bottom:6px}
-  .opps.many .seat .hand{gap:5px}
+  .opps.many .hrow{gap:5px;padding:3px}
+  .opps.many .hand.rows{gap:4px}
   .opps.many .card{--cw:34px}
 }
 .score{font-weight:700;font-variant-numeric:tabular-nums;color:var(--gold)}
 .hand{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .opps .card{--cw:clamp(36px,6.4vw,50px)}
-.seat .hand,.me .hand{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;gap:8px}
-.me .hand{gap:12px}
+.hand.rows{flex-direction:column;flex-wrap:nowrap;align-items:center;gap:6px}
+.hrow{display:flex;gap:8px;padding:4px;border-radius:12px}
+.me .hrow{gap:12px;padding:6px}
+.hrow.peek{background:rgba(242,184,75,.12);box-shadow:inset 0 0 0 1.5px rgba(242,184,75,.45)}
+.card.spacer{visibility:hidden}
 .center{display:flex;justify-content:center;align-items:center;gap:22px;margin:22px 0 14px;flex-wrap:wrap}
 .pile{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .drawn{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--gold);min-width:90px}
@@ -253,8 +257,16 @@ function addLog(S,msg){S.log.unshift(msg);if(S.log.length>9)S.log.length=9}
 // Every player action is shown to everyone: a line of text plus a labelled highlight on the cards it touched.
 // cards: [[playerIndex, slot], ...]; never includes hidden values.
 function note(S,i,text,tag,cards){ addLog(S,text); S.last={n:(S.last?S.last.n:0)+1, by:i, text, tag:tag||null, cards:cards||[]}; }
+// Card positions in announcements are tokens (owner + slot) so each screen can describe them as that player sees
+// the table: your own hand as you hold it, everyone else's turned around as if they sat across from you.
+const pos=(pi,x)=>`⟦${pi}:${x}⟧`;
 const POS=['top-left','top-right','bottom-left','bottom-right'];
-const pos=x=>POS[x]||`extra card ${x-3}`;
+function viewPos(pi,x,me){
+  if(x>3) return `extra card ${x-3}`;
+  if(pi===me) return POS[x];
+  return ['bottom-right','bottom-left','top-right','top-left'][x]; // turned 180°: their near row is far from you
+}
+const describe=(text,me)=>String(text).replace(/⟦(\d+):(\d+)⟧/g,(_,pi,x)=>viewPos(+pi,+x,me));
 function pname(S,i){return S.players[i]?S.players[i].name:'?'}
 function know(S,i,id){const k=S.kn[id]||(S.kn[id]=[]);if(!k.includes(i))k.push(i)}
 // After a swap, what anyone remembered about the two moved cards no longer counts: a Jack/Queen swap is blind
@@ -337,12 +349,12 @@ function apply(S,i,a){
     if(S.rk[id]===S.rk[topId]||S.rk[id]===0){
       T.hand[a.slot]=null; S.discard.push(id); S.up[id]=1; S.matched=true;
       if(!own) S.give={from:i,to:a.target,slot:a.slot};
-      note(S,i,`${P.name} matched ${whose} ${pos(a.slot)} card (${AN(CN(S,id))})${own?'!':` — ${P.name} now gives ${T.name} a card`}`,'MATCHED',[[a.target,a.slot]]);
+      note(S,i,`${P.name} matched ${whose} ${pos(a.target,a.slot)} card (${AN(CN(S,id))})${own?'!':` — ${P.name} now gives ${T.name} a card`}`,'MATCHED',[[a.target,a.slot]]);
       if(!P.hand.some(x=>x!=null)&&S.give&&S.give.from===i) S.give=null;
     } else {
       S.players.forEach((_,k)=>know(S,k,id));
       const pc=penalty();
-      note(S,i,`${P.name} tried to match ${whose} ${pos(a.slot)} card — it's ${AN(CN(S,id))}, no match${pc?' · +1 penalty card':''}`,'MISSED',[[a.target,a.slot]].concat(pc?[pc]:[]));
+      note(S,i,`${P.name} tried to match ${whose} ${pos(a.target,a.slot)} card — it's ${AN(CN(S,id))}, no match${pc?' · +1 penalty card':''}`,'MISSED',[[a.target,a.slot]].concat(pc?[pc]:[]));
     }
     return null;
   }
@@ -352,7 +364,7 @@ function apply(S,i,a){
     const T=S.players[S.give.to], id=P.hand[a.slot]; P.hand[a.slot]=null;
     const to=T.hand[S.give.slot]==null?S.give.slot:T.hand.length;
     T.hand[to]=id;
-    note(S,i,`${P.name} gave ${T.name} their ${pos(a.slot)} card`,'GIVEN',[[S.give.to,to]]); S.give=null; return null;
+    note(S,i,`${P.name} gave ${T.name} their ${pos(i,a.slot)} card`,'GIVEN',[[S.give.to,to]]); S.give=null; return null;
   }
   if(S.phase!=='turn'||S.turn!==i) return 'Not your turn';
   const pd=S.pending;
@@ -384,20 +396,20 @@ function apply(S,i,a){
     case 'kingswap': {
       if(!pd||pd.step!=='king2') return 'Not now';
       const [q1,q2]=pd.picks, A=S.players[q1[0]], B=S.players[q2[0]];
-      const d=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[1])} card`;
+      const d=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[0],q[1])} card`;
       if(a.swap){ const t=A.hand[q1[1]]; A.hand[q1[1]]=B.hand[q2[1]]; B.hand[q2[1]]=t; forget(S,[A.hand[q1[1]],t],i); note(S,i,`${P.name} used KING to swap ${d(q1)} with ${d(q2)}`,'SWAPPED',pd.picks); }
       else note(S,i,`${P.name} looked and left both cards where they were`,'LOOKED',pd.picks);
       endTurn(S); return null;
     }
     case 'ability': {
       if(!pd||pd.step!=='ability') return 'Not now';
-      if(pd.ab==='peek'){ if(!validSlot(P,a.slot)) return 'Pick one of your cards'; know(S,i,P.hand[a.slot]); note(S,i,`${P.name} used PEEK on their own ${pos(a.slot)} card`,'PEEKED',[[i,a.slot]]); }
-      else if(pd.ab==='spy'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.slot)) return 'Pick an opponent card'; know(S,i,T.hand[a.slot]); note(S,i,`${P.name} used SPY on ${T.name}'s ${pos(a.slot)} card`,'SPIED',[[a.target,a.slot]]); }
+      if(pd.ab==='peek'){ if(!validSlot(P,a.slot)) return 'Pick one of your cards'; know(S,i,P.hand[a.slot]); note(S,i,`${P.name} used PEEK on their own ${pos(i,a.slot)} card`,'PEEKED',[[i,a.slot]]); }
+      else if(pd.ab==='spy'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.slot)) return 'Pick an opponent card'; know(S,i,T.hand[a.slot]); note(S,i,`${P.name} used SPY on ${T.name}'s ${pos(a.target,a.slot)} card`,'SPIED',[[a.target,a.slot]]); }
       else if(pd.ab==='swap'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.tslot)||!validSlot(P,a.slot)) return 'Pick your card and an opponent card';
         const t=P.hand[a.slot]; P.hand[a.slot]=T.hand[a.tslot]; T.hand[a.tslot]=t; forget(S,[P.hand[a.slot],t],null);
-        note(S,i,`${P.name} used SWAP: their ${pos(a.slot)} card for ${T.name}'s ${pos(a.tslot)} card`,'SWAPPED',[[i,a.slot],[a.target,a.tslot]]); }
+        note(S,i,`${P.name} used SWAP: their ${pos(i,a.slot)} card for ${T.name}'s ${pos(a.target,a.tslot)} card`,'SWAPPED',[[i,a.slot],[a.target,a.tslot]]); }
       else if(pd.ab==='king'){
-        const ps=a.picks, desc=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[1])} card`;
+        const ps=a.picks, desc=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[0],q[1])} card`;
         if(!Array.isArray(ps)||ps.length!==2||!ps.every(q=>Array.isArray(q)&&S.players[q[0]]&&validSlot(S.players[q[0]],q[1]))||(ps[0][0]===ps[1][0]&&ps[0][1]===ps[1][1])) return 'Pick two different cards';
         ps.forEach(q=>know(S,i,S.players[q[0]].hand[q[1]]));
         S.pending={...pd,step:'king2',picks:ps}; note(S,i,`${P.name} used KING to look at ${desc(ps[0])} and ${desc(ps[1])}`,'LOOKED',ps); return null;
@@ -414,7 +426,7 @@ function apply(S,i,a){
       if(match){
         s.forEach(x=>{const id=P.hand[x];S.discard.push(id);S.up[id]=1;P.hand[x]=null}); S.matched=false;
         P.hand[s[0]]=pd.id; if(fromD) S.up[pd.id]=1;
-        note(S, i, s.length===1 ? `${P.name} ${fromD?`took the ${nn} and `:''}replaced their ${pos(s[0])} card (discarded ${AN(names[0])})`
+        note(S, i, s.length===1 ? `${P.name} ${fromD?`took the ${nn} and `:''}replaced their ${pos(i,s[0])} card (discarded ${AN(names[0])})`
                                : `${P.name} ${fromD?`took the ${nn} and `:''}matched ${s.length} × ${real.length?RN(real[0]):'Joker'}${real.length<ranks.length&&real.length?' (with a wild Joker)':''}!`, 'REPLACED', [[i,s[0]]]);
       } else {
         s.forEach(x=>{S.up[P.hand[x]]=1});
@@ -786,6 +798,7 @@ function rulesHTML(){
   <p>Everyone gets 4 face-down cards in a 2×2 square and peeks at their <b>bottom two</b> at the start. After that, you only see your cards again by using powers.</p>
   <p><b>On your turn</b>, do one of these:<br>• <b>Draw from the deck</b>, then either discard it (using its power, if it has one) or swap it with one of your cards. A card you swap out doesn't use its power.<br>• <b>Call CABO.</b> That's your whole turn. Everyone else gets one more turn, then all cards are revealed.</p>
   <p><b>Powers</b> (when you discard the card you drew): 7–8 <b>PEEK</b> at one of your cards · 9–10 <b>SPY</b> on an opponent's card · Jack/Queen <b>SWAP</b> one of your cards with an opponent's card, blind: everyone sees which two cards moved, but nobody, not even you, learns what they are · King <b>KING</b>: look at any two cards on the table, then swap them or leave them. Only you see them; if you swap, nobody else learns what moved, even a card they had memorized.</p>
+  <p><b>The table</b> is laid out like sitting together: your cards as you hold them, everyone else's turned to face their owner. Each hand's <b>gold row</b> is its peek row, the two cards its owner looked at at the start: nearest you for your own hand, furthest from you for opponents. Cards never move around: a matched card leaves a gap, and a spot only changes when a card is swapped or added.</p>
   <p><b>Matching the top card</b> (anyone, any time): if you think a card matches the rank on top of the discard pile, play it.<br>• Your own card, correct: it's gone, so you have one fewer card.<br>• Another player's card, correct: it's discarded, and you give that player one of your cards.<br>• Wrong: everyone sees the card, it goes back, and you take a penalty card.<br>• <b>Only one match per discarded card.</b> Once someone matches it, anyone who places a card on it after that was too slow and takes a penalty card. Turning on Match mode alone costs nothing.</p>
   <p><b>Jokers are wild:</b> a Joker matches any card. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
   <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>
@@ -832,7 +845,7 @@ function topHTML(){
 }
 
 function statusText(me){
-  if(S.phase==='peek') return me>=0&&!S.players[me].peeked?'Peek at your bottom two':'Waiting for others…';
+  if(S.phase==='peek') return me>=0&&!S.players[me].peeked?'Peek at your two cards in the gold row':'Waiting for others…';
   if(S.phase!=='turn') return '';
   if(S.give&&S.give.from===me) return `Give ${esc(pname(S,S.give.to))} a card`;
   if(S.give) return `${esc(pname(S,S.give.from))} is giving a card…`;
@@ -851,6 +864,18 @@ function statusText(me){
   return '';
 }
 
+// Hands are laid out like a real table. Each hand is 2x2 (plus any extra cards); slots 2-3 are the peek row, the
+// two cards its owner looked at at the start. Your own hand is shown as you hold it (peek row nearest you);
+// everyone else's is turned around as if they sat across from you (peek row furthest from you, left and right
+// mirrored). A slot never moves: matched cards leave a gap, and only swaps and added cards change what's in it.
+function handRows(pi,me,cell){
+  const n=S.players[pi].hand.length, rows=Math.ceil(n/2), turned=pi!==me, out=[];
+  for(let k=0;k<rows;k++){
+    const r=turned?rows-1-k:k, cols=turned?[1,0]:[0,1];
+    out.push(`<div class="hrow${r===1?' peek':''}">${cols.map(c=>{const x=r*2+c; return x<n?cell(S.players[pi].hand[x],x):'<div class="card spacer"></div>'}).join('')}</div>`);
+  }
+  return `<div class="hand rows">${out.join('')}</div>`;
+}
 function tableHTML(){
   const me=myIndex(), n=S.players.length, pd=S.pending, myTurn=S.phase==='turn'&&S.turn===me;
   const order=[]; for(let k=1;k<n;k++) order.push(((me<0?0:me)+k)%n); if(me<0) order.unshift(0);
@@ -866,7 +891,7 @@ function tableHTML(){
   const seat=i=>{const p=S.players[i]; const away=!p.bot&&!offline&&!peersHere.has(p.peer);
     return `<div class="seat ${S.phase==='turn'&&S.turn===i?'turn':''} ${oppTarget?'target':''} ${away?'away':''}">
       <div class="seathead"><b><span class="nm">${esc(p.name)}</span>${p.bot?'<span class="tag">bot</span>':''}${away?'<span class="tag">away</span>':''}${S.caboBy===i?'<span class="tag gold">CABO</span>':''}</b></div>
-      <div class="hand">${p.hand.map((id,x)=>{const h=H(i,x); return id==null?cardHTML(0,{empty:1,cls:h.hl,badge:h.badge}):(()=>{const vz=visible(i,x,id);return cardHTML(vz?id:null,{cls:(vz==='pub'?'pub':vz==='mem'?'mem':vz==='flash'?'flash':'')+cardFx('c'+i+':'+x,id,vz)+(oppTarget?' click':'')+(kSel(i,x)?' sel':'')+h.hl,badge:h.badge,attr:`data-opp="${i}" data-slot="${x}"`})})()}).join('')}</div>
+      ${handRows(i,me,(id,x)=>{const h=H(i,x); return id==null?cardHTML(0,{empty:1,cls:h.hl,badge:h.badge}):(()=>{const vz=visible(i,x,id);return cardHTML(vz?id:null,{cls:(vz==='pub'?'pub':vz==='mem'?'mem':vz==='flash'?'flash':'')+cardFx('c'+i+':'+x,id,vz)+(oppTarget?' click':'')+(kSel(i,x)?' sel':'')+h.hl,badge:h.badge,attr:`data-opp="${i}" data-slot="${x}"`})})()})}
       ${away&&isHost&&!p.bot?`<div style="margin-top:8px"><button class="small ghost" data-botify="${i}">Bot plays</button></div>`:''}
     </div>`};
   const topId=S.discard.length?S.discard[S.discard.length-1]:null, top=topId!=null?S.vals[topId]:null;
@@ -913,7 +938,7 @@ function tableHTML(){
    ${ended?results:''}
    <div class="rail"><div class="felt">
    <div class="opps${order.length>3?' many':''}">${order.map(seat).join('')}</div>
-   ${L?`<div class="lastact${fresh?' anim-in':''}">${(fxNext.lastact=L.n,'')}${L.tag?`<span class="hltag">${L.tag}</span>`:''}<span>${esc(L.text)}</span></div>`:''}
+   ${L?`<div class="lastact${fresh?' anim-in':''}">${(fxNext.lastact=L.n,'')}${L.tag?`<span class="hltag">${L.tag}</span>`:''}<span>${esc(describe(L.text,me))}</span></div>`:''}
    <div class="center">
      <div class="pile"><div class="deckpile">${cardHTML(null)}</div><span>Deck<small>${S.deck.length} left</small></span></div>
      <div class="pile discard ${snapping?'target-pile':''}">${topId!=null?`<div class="${S.discard.length>1?'stack':''}">${cardHTML(topId,{cls:fx('discard',topId,'anim-drop')})}</div>`:cardHTML(0,{empty:1})}<span>Discard${S.matched&&S.phase==='turn'?'<small class="matched">already matched</small>':''}</span></div>
@@ -921,14 +946,14 @@ function tableHTML(){
    </div>
    ${P?`<div class="me ${myTurn?'turn':''}">
      <div class="status">${statusText(me)}</div>
-     <div class="hand">${P.hand.map((id,x)=>{ const h=H(me,x); if(id==null) return cardHTML(0,{empty:1,cls:h.hl,badge:h.badge});
+     ${handRows(me,me,(id,x)=>{ const h=H(me,x); if(id==null) return cardHTML(0,{empty:1,cls:h.hl,badge:h.badge});
         const vz=visible(me,x,id);
-        return cardHTML(vz?id:null,{cls:(vz==='pub'?'pub':vz==='mem'?'mem':vz==='flash'?'flash':'')+cardFx('c'+me+':'+x,id,vz)+(selectable?' click':'')+((sel.has(x)||swapOwn===x||kSel(me,x))?' sel':'')+h.hl,badge:h.badge,attr:`data-mine="${x}"`}) }).join('')}</div>
+        return cardHTML(vz?id:null,{cls:(vz==='pub'?'pub':vz==='mem'?'mem':vz==='flash'?'flash':'')+cardFx('c'+me+':'+x,id,vz)+(selectable?' click':'')+((sel.has(x)||swapOwn===x||kSel(me,x))?' sel':'')+h.hl,badge:h.badge,attr:`data-mine="${x}"`}) })}
      <div class="actions">${actions}</div>
      <div class="row" style="justify-content:space-between;margin-top:12px"><span class="note">${esc(P.name)} (you)${S.caboBy===me?' · you called CABO':''}</span><span></span></div>
    </div>`:`<div class="me"><div class="status">Watching</div></div>`}
    </div></div>
-   <div class="log">${S.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>`;
+   <div class="log">${S.log.map(l=>`<div>${esc(describe(l,me))}</div>`).join('')}</div>`;
 }
 
 function bindGame(){

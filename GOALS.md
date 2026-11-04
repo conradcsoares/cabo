@@ -13,6 +13,8 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
   - Meaning: card faces should look clean and crisp: sharp suit symbols and straight, clean lettering for ranks like J, Q, K.
 - **2026-11-03** — "you should be aware of every action other players make, for example if an opponent draws a ten and uses spy, other players need to know that they used that and what card they spied on, this goes the same for every action every player makes throughout the game."
   - Meaning: everyone sees who did what to which card (whose card, which position), but not hidden card values a player privately looked at.
+- **2026-11-03** — "when one person uses the queen jack or king, the rules are wrong, the person who uses the queen or jack is supposed to be a blind swap and nobody is supposed to receive info on which specific cards were swapped, if it is a king, only the person who played the king is allowed to look at the cards that are being swapped, for example if i use the king on one of mine and an opponents card the opponent shouldnt receive the info on the cards that were swapped"
+  - Meaning: after a Jack/Queen swap, nobody (not even the swapper) knows either swapped card's value. After a King swap, only the King player knows them. Everyone still sees which positions were swapped (per the "aware of every action" goal).
 - **2026-11-03** — "only one match can be used on each card, for example if i match a 7 on top of a seven, if a second player tries to match on top of it after me they will draw an extra card because they were too slow, they only draw an extra card if they click on the card to place it down, not if they are in the match action"
 
 ## How to work

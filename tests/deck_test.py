@@ -56,6 +56,19 @@ JS = r"""() => {
   acts.king=withPower('king',{t:'ability',picks:[[0,1],[2,0]]});
   out.acts=acts;
 
+  // swaps hide what moved: everyone memorized both cards first, then...
+  const allKnow=(T,ids)=>ids.forEach(id=>T.players.forEach((_,k)=>know(T,k,id)));
+  const who=(T,id)=>T.players.map((_,k)=>knows(T,k,id)?k:null).filter(k=>k!=null);
+  let W=game(3); W.turn=0; let mine=W.players[0].hand[0], theirs=W.players[1].hand[3]; allKnow(W,[mine,theirs]);
+  W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'swap'}; apply(W,0,{t:'ability',slot:0,target:1,tslot:3});
+  out.blindSwap=[W.players[0].hand[0]===theirs, W.players[1].hand[3]===mine, who(W,mine), who(W,theirs), W.last.tag];
+  W=game(3); W.turn=0; mine=W.players[0].hand[1]; theirs=W.players[2].hand[0]; allKnow(W,[mine,theirs]);
+  W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'king'}; apply(W,0,{t:'ability',picks:[[0,1],[2,0]]}); apply(W,0,{t:'kingswap',swap:true});
+  out.kingSwap=[W.players[0].hand[1]===theirs, W.players[2].hand[0]===mine, who(W,mine), who(W,theirs)];
+  W=game(3); W.turn=0; mine=W.players[0].hand[1]; theirs=W.players[2].hand[0]; allKnow(W,[mine,theirs]);
+  W.pending={src:'deck',id:W.deck.pop(),step:'ability',ab:'king'}; apply(W,0,{t:'ability',picks:[[0,1],[2,0]]}); apply(W,0,{t:'kingswap',swap:false});
+  out.kingLeave=[who(W,mine), who(W,theirs)];
+
   // the host seats at most 7 people
   S = newLobby('host','ABCD'); isHost = true; myPeer = 'host'; S.players.push({pid:'h', peer:'host', name:'Host'});
   for (let k=1;k<=9;k++) onRemoteAct({data:{t:'join', name:'P'+k}, peer:'p'+k, by:'u'+k});
@@ -89,6 +102,11 @@ async def main():
     check("PEEK is shown with the card position", a["peek"][1] == "PEEKED" and "bottom-left" in a["peek"][2] and a["peek"][3] == "[[0,2]]", a["peek"])
     check("SWAP is shown with both cards", a["swap"][1] == "SWAPPED" and "P1's bottom-right" in a["swap"][2] and a["swap"][3] == "[[0,0],[1,3]]", a["swap"])
     check("KING look is shown with both cards", a["king"][1] == "LOOKED" and "P2's top-left" in a["king"][2] and a["king"][3] == "[[0,1],[2,0]]", a["king"])
+    bs = r["blindSwap"]
+    check("Jack/Queen swap is blind: nobody knows either card afterwards", bs[0] and bs[1] and bs[2] == [] and bs[3] == [] and bs[4] == "SWAPPED", bs)
+    ks = r["kingSwap"]
+    check("King swap: only the King player knows the swapped cards", ks[0] and ks[1] and ks[2] == [0] and ks[3] == [0], ks)
+    check("King look without swapping changes nobody's knowledge", r["kingLeave"] == [[0, 1, 2], [0, 1, 2]], r["kingLeave"])
     print("\nALL PASSED" if not fails else f"\n{len(fails)} FAILED"); sys.exit(1 if fails else 0)
 
 asyncio.run(main())

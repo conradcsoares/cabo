@@ -493,6 +493,9 @@ const POS=['top-left','top-right','bottom-left','bottom-right'];
 const pos=x=>POS[x]||`extra card ${x-3}`;
 function pname(S,i){return S.players[i]?S.players[i].name:'?'}
 function know(S,i,id){const k=S.kn[id]||(S.kn[id]=[]);if(!k.includes(i))k.push(i)}
+// After a swap, what anyone remembered about the two moved cards no longer counts: a Jack/Queen swap is blind
+// for everyone (keep=null); after a King swap only the King player (keep) knows them.
+function forget(S,ids,keep){ ids.forEach(id=>{ if(keep==null) delete S.kn[id]; else S.kn[id]=[keep]; }); }
 function knows(S,i,id){return !!(S.up[id]||(S.kn[id]&&S.kn[id].includes(i)))}
 
 function startGame(S){
@@ -618,7 +621,7 @@ function apply(S,i,a){
       if(!pd||pd.step!=='king2') return 'Not now';
       const [q1,q2]=pd.picks, A=S.players[q1[0]], B=S.players[q2[0]];
       const d=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[1])} card`;
-      if(a.swap){ const t=A.hand[q1[1]]; A.hand[q1[1]]=B.hand[q2[1]]; B.hand[q2[1]]=t; note(S,i,`${P.name} used KING to swap ${d(q1)} with ${d(q2)}`,'SWAPPED',pd.picks); }
+      if(a.swap){ const t=A.hand[q1[1]]; A.hand[q1[1]]=B.hand[q2[1]]; B.hand[q2[1]]=t; forget(S,[A.hand[q1[1]],t],i); note(S,i,`${P.name} used KING to swap ${d(q1)} with ${d(q2)}`,'SWAPPED',pd.picks); }
       else note(S,i,`${P.name} looked and left both cards where they were`,'LOOKED',pd.picks);
       endTurn(S); return null;
     }
@@ -627,7 +630,7 @@ function apply(S,i,a){
       if(pd.ab==='peek'){ if(!validSlot(P,a.slot)) return 'Pick one of your cards'; know(S,i,P.hand[a.slot]); note(S,i,`${P.name} used PEEK on their own ${pos(a.slot)} card`,'PEEKED',[[i,a.slot]]); }
       else if(pd.ab==='spy'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.slot)) return 'Pick an opponent card'; know(S,i,T.hand[a.slot]); note(S,i,`${P.name} used SPY on ${T.name}'s ${pos(a.slot)} card`,'SPIED',[[a.target,a.slot]]); }
       else if(pd.ab==='swap'){ const T=S.players[a.target]; if(a.target===i||!T||!validSlot(T,a.tslot)||!validSlot(P,a.slot)) return 'Pick your card and an opponent card';
-        const t=P.hand[a.slot]; P.hand[a.slot]=T.hand[a.tslot]; T.hand[a.tslot]=t;
+        const t=P.hand[a.slot]; P.hand[a.slot]=T.hand[a.tslot]; T.hand[a.tslot]=t; forget(S,[P.hand[a.slot],t],null);
         note(S,i,`${P.name} used SWAP: their ${pos(a.slot)} card for ${T.name}'s ${pos(a.tslot)} card`,'SWAPPED',[[i,a.slot],[a.target,a.tslot]]); }
       else if(pd.ab==='king'){
         const ps=a.picks, desc=q=>`${q[0]===i?'their own':S.players[q[0]].name+"'s"} ${pos(q[1])} card`;
@@ -1018,7 +1021,7 @@ function rulesHTML(){
   <p><b>Goal:</b> have the fewest points when the game ends. Uses a regular 54-card deck: <b>Joker = −2, red King = −1, Ace = 1, 2–10 = face value, Jack = 11, Queen = 12, black King = 13</b>.</p>
   <p>Everyone gets 4 face-down cards in a 2×2 square and peeks at their <b>bottom two</b> at the start. After that, you only see your cards again by using powers.</p>
   <p><b>On your turn</b>, do one of these:<br>• <b>Draw from the deck</b>, then either discard it (using its power, if it has one) or swap it with one of your cards. A card you swap out doesn't use its power.<br>• <b>Call CABO.</b> That's your whole turn. Everyone else gets one more turn, then all cards are revealed.</p>
-  <p><b>Powers</b> (when you discard the card you drew): 7–8 <b>PEEK</b> at one of your cards · 9–10 <b>SPY</b> on an opponent's card · Jack/Queen <b>SWAP</b> one of your cards with an opponent's card, blind · King <b>KING</b>: look at any two cards on the table, then swap them or leave them.</p>
+  <p><b>Powers</b> (when you discard the card you drew): 7–8 <b>PEEK</b> at one of your cards · 9–10 <b>SPY</b> on an opponent's card · Jack/Queen <b>SWAP</b> one of your cards with an opponent's card, blind: everyone sees which two cards moved, but nobody, not even you, learns what they are · King <b>KING</b>: look at any two cards on the table, then swap them or leave them. Only you see them; if you swap, nobody else learns what moved, even a card they had memorized.</p>
   <p><b>Matching the top card</b> (anyone, any time): if you think a card matches the rank on top of the discard pile, play it.<br>• Your own card, correct: it's gone, so you have one fewer card.<br>• Another player's card, correct: it's discarded, and you give that player one of your cards.<br>• Wrong: everyone sees the card, it goes back, and you take a penalty card.<br>• <b>Only one match per discarded card.</b> Once someone matches it, anyone who places a card on it after that was too slow and takes a penalty card. Turning on Match mode alone costs nothing.</p>
   <p><b>Jokers are wild:</b> a Joker matches any card. So if you know where someone's Joker is, you can steal it by matching it. A Joker you draw and discard lets you use any power.</p>
   <p><b>Winning:</b> once CABO has been called and everyone else has had their last turn, the lowest hand wins. Tie on points? The tied player with the most cards wins. Still tied? The CABO caller wins if they're one of them. Otherwise it's a tie. When someone needs to draw and the deck is empty, the discard pile (except its top card) is shuffled into a new deck.</p>

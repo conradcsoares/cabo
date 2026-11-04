@@ -20,6 +20,11 @@ Everything Conrad has asked for, in Conrad's own words, with dates. Every decisi
 - **2026-11-03** — "new rule for players once they call cabo, 1. when you call cabo your two top cards are now locked and cannot be swapped by any other players through powers such as jacks queens, or kings, they can still however be matched to give you extra cards, all other cards can still be swapped or matched after calling cabo"
   - Meaning: "top cards" = the caller's row opposite their gold peek row. Locked spots can still be looked at (SPY, KING look) and matched.
 - **2026-11-03** — "it is very easy to misclick cabo, another confirmation saying are you sure you want to call cabo to make it two clicks to call cabo rather than one would be nice"
+- **2026-11-03** — "make it so that queen and jack can swap any two careds not necessarioly your own"
+- **2026-11-03** — "make it so that you can turn memory mode on and off in the same lobby"
+  - Meaning: the host can switch memory mode during or between games, not only before the first one.
+- **2026-11-03** — "make it so that uc an match anything on top of a discarded joker"
+- **2026-11-03** — "make it so there is not a discarded card by default"
 
 ## How to work
 
